@@ -301,7 +301,7 @@ function LoginView({ onLogin, onReset, onPrintCodes }) {
             <Avatar user={u} size={44} />
             <div style={{ flex:1 }}>
               <div style={{ color:'#eee', fontWeight:600, fontSize:15 }}>{u.name}</div>
-              <div style={{ color:'#555', fontSize:12, marginTop:2 }}>{u.role}</div>
+              <div style={{ color:'#888', fontSize:12, marginTop:2 }}>{u.role}</div>
             </div>
             <div style={{ color:'#444' }}>→</div>
           </div>
@@ -309,10 +309,10 @@ function LoginView({ onLogin, onReset, onPrintCodes }) {
       </div>
 
       <div style={{ display:'flex', gap:8, justifyContent:'center', marginTop:24 }}>
-        <button className="btn-ghost" onClick={onPrintCodes} style={{ fontSize:11 }}>
+        <button className="btn-ghost" onClick={onPrintCodes} style={{ fontSize:13 }}>
           🖨️ Drukuj kody QR
         </button>
-        <button className="btn-ghost" onClick={onReset} style={{ fontSize:11 }}>
+        <button className="btn-ghost" onClick={onReset} style={{ fontSize:13 }}>
           🔄 Resetuj dane
         </button>
       </div>
@@ -331,10 +331,10 @@ function HomeView({ user, equipment, history, onAction, onLogout }) {
       <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:24 }}>
         <Avatar user={user} size={46} />
         <div style={{ flex:1 }}>
-          <div style={{ color:'#555', fontSize:12 }}>Zalogowany jako</div>
+          <div style={{ color:'#888', fontSize:12 }}>Zalogowany jako</div>
           <div style={{ color:'#fff', fontWeight:700, fontSize:16 }}>{user.name}</div>
         </div>
-        <button className="btn-ghost" onClick={onLogout} style={{ padding:'6px 10px', fontSize:11 }}>
+        <button className="btn-ghost" onClick={onLogout} style={{ padding:'6px 10px', fontSize:13 }}>
           Wyloguj
         </button>
       </div>
@@ -342,21 +342,21 @@ function HomeView({ user, equipment, history, onAction, onLogout }) {
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:24 }}>
         <div className="card" style={{ padding:14, textAlign:'center' }}>
           <div style={{ color:'#FBB724', fontWeight:800, fontSize:28, fontFamily:'DM Mono,monospace', lineHeight:1 }}>{myItems.length}</div>
-          <div style={{ color:'#555', fontSize:11, marginTop:4 }}>U Ciebie</div>
+          <div style={{ color:'#888', fontSize:13, marginTop:4 }}>U Ciebie</div>
         </div>
         <div className="card" style={{ padding:14, textAlign:'center' }}>
           <div style={{ color:'#22C55E', fontWeight:800, fontSize:28, fontFamily:'DM Mono,monospace', lineHeight:1 }}>{warehouseCount}</div>
-          <div style={{ color:'#555', fontSize:11, marginTop:4 }}>Magazyn</div>
+          <div style={{ color:'#888', fontSize:13, marginTop:4 }}>Magazyn</div>
         </div>
         <div className="card" style={{ padding:14, textAlign:'center' }}>
           <div style={{ color:'#818CF8', fontWeight:800, fontSize:28, fontFamily:'DM Mono,monospace', lineHeight:1 }}>{myHistory}</div>
-          <div style={{ color:'#555', fontSize:11, marginTop:4 }}>Twoje akcje</div>
+          <div style={{ color:'#888', fontSize:13, marginTop:4 }}>Twoje akcje</div>
         </div>
       </div>
 
       {myItems.length > 0 && (
         <div style={{ marginBottom:22 }}>
-          <div style={{ color:'#3a3a3a', fontSize:11, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:10 }}>
+          <div style={{ color:'#888', fontSize:13, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:10 }}>
             Sprzęt u Ciebie ({myItems.length})
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
@@ -368,14 +368,14 @@ function HomeView({ user, equipment, history, onAction, onLogout }) {
                     {item.name}
                   </div>
                 </div>
-                <span style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'#666' }}>{item.code}</span>
+                <span style={{ fontFamily:'DM Mono,monospace', fontSize:13, color:'#666' }}>{item.code}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <div style={{ color:'#3a3a3a', fontSize:11, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:10 }}>
+      <div style={{ color:'#888', fontSize:13, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:10 }}>
         Akcje
       </div>
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -384,7 +384,7 @@ function HomeView({ user, equipment, history, onAction, onLogout }) {
             <span style={{ fontSize:28 }}>📤</span>
             <div>
               <div style={{ color:'#eee', fontWeight:700, fontSize:15 }}>Pobierz sprzęt</div>
-              <div style={{ color:'#555', fontSize:12, marginTop:2 }}>Z magazynu — zeskanuj QR lub wpisz kod</div>
+              <div style={{ color:'#888', fontSize:12, marginTop:2 }}>Z magazynu — zeskanuj QR lub wpisz kod</div>
             </div>
           </div>
         </button>
@@ -395,7 +395,7 @@ function HomeView({ user, equipment, history, onAction, onLogout }) {
               <span style={{ fontSize:28 }}>📥</span>
               <div>
                 <div style={{ color:'#eee', fontWeight:700, fontSize:15 }}>Zwróć do magazynu</div>
-                <div style={{ color:'#555', fontSize:12, marginTop:2 }}>Twój sprzęt wraca do magazynu</div>
+                <div style={{ color:'#888', fontSize:12, marginTop:2 }}>Twój sprzęt wraca do magazynu</div>
               </div>
             </div>
           </button>
@@ -406,7 +406,7 @@ function HomeView({ user, equipment, history, onAction, onLogout }) {
             <span style={{ fontSize:28 }}>🔍</span>
             <div>
               <div style={{ color:'#eee', fontWeight:700, fontSize:15 }}>Katalog sprzętu</div>
-              <div style={{ color:'#555', fontSize:12, marginTop:2 }}>Zobacz gdzie jest jaki sprzęt</div>
+              <div style={{ color:'#888', fontSize:12, marginTop:2 }}>Zobacz gdzie jest jaki sprzęt</div>
             </div>
           </div>
         </button>
@@ -416,7 +416,7 @@ function HomeView({ user, equipment, history, onAction, onLogout }) {
             <span style={{ fontSize:28 }}>📋</span>
             <div>
               <div style={{ color:'#eee', fontWeight:700, fontSize:15 }}>Historia operacji</div>
-              <div style={{ color:'#555', fontSize:12, marginTop:2 }}>{history.length} {history.length === 1 ? 'operacja' : 'operacji'}</div>
+              <div style={{ color:'#888', fontSize:12, marginTop:2 }}>{history.length} {history.length === 1 ? 'operacja' : 'operacji'}</div>
             </div>
           </div>
         </button>
@@ -532,7 +532,7 @@ function ScanView({ user, equipment, mode, onConfirm, onBack }) {
           <button className="btn-ghost" onClick={onBack} style={{ padding:'8px 12px' }}>←</button>
           <div style={{ flex:1 }}>
             <div style={{ color:'#fff', fontWeight:700, fontSize:17 }}>{mc.title}</div>
-            <div style={{ color:'#555', fontSize:12, marginTop:1 }}>Źródło: {mc.source}</div>
+            <div style={{ color:'#888', fontSize:12, marginTop:1 }}>Źródło: {mc.source}</div>
           </div>
           {cart.length > 0 && (
             <div style={{ background:mc.color+'22', color:mc.color,
@@ -552,7 +552,7 @@ function ScanView({ user, equipment, mode, onConfirm, onBack }) {
 
         {/* Manual code input */}
         <div className="card" style={{ padding:12, marginBottom:14 }}>
-          <div style={{ color:'#666', fontSize:11, marginBottom:8, letterSpacing:'.05em', textTransform:'uppercase' }}>
+          <div style={{ color:'#666', fontSize:13, marginBottom:8, letterSpacing:'.05em', textTransform:'uppercase' }}>
             Lub wpisz kod ręcznie
           </div>
           <div style={{ display:'flex', gap:8 }}>
@@ -579,7 +579,7 @@ function ScanView({ user, equipment, mode, onConfirm, onBack }) {
         </div>
 
         {/* List of available items */}
-        <div style={{ color:'#3a3a3a', fontSize:11, fontWeight:700, letterSpacing:'.1em',
+        <div style={{ color:'#888', fontSize:13, fontWeight:700, letterSpacing:'.1em',
           textTransform:'uppercase', marginBottom:10 }}>
           Lub wybierz z listy ({availableItems.length})
         </div>
@@ -602,7 +602,7 @@ function ScanView({ user, equipment, mode, onConfirm, onBack }) {
                   <div style={{ color: inCart ? '#86EFAC' : '#ccc', fontSize:13, fontWeight:500 }}>
                     {item.name}
                   </div>
-                  <div style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'#666', marginTop:3 }}>
+                  <div style={{ fontFamily:'DM Mono,monospace', fontSize:13, color:'#666', marginTop:3 }}>
                     {item.code}
                   </div>
                 </div>
@@ -627,7 +627,7 @@ function ScanView({ user, equipment, mode, onConfirm, onBack }) {
               <div style={{ color:'#eee', fontSize:13, fontWeight:600 }}>
                 Wybrano: {cart.length} {cart.length === 1 ? 'element' : cart.length < 5 ? 'elementy' : 'elementów'}
               </div>
-              <div style={{ color:'#666', fontSize:11, fontFamily:'DM Mono,monospace', marginTop:3 }}>
+              <div style={{ color:'#666', fontSize:13, fontFamily:'DM Mono,monospace', marginTop:3 }}>
                 {cart.map(i => i.code).join(' · ')}
               </div>
             </div>
@@ -670,10 +670,10 @@ function CatalogView({ equipment, onBack }) {
               <span style={{ fontSize:24 }}>{CATEGORIES[item.cat].icon}</span>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ color:'#ddd', fontSize:13, fontWeight:600 }}>{item.name}</div>
-                <div style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'#555', marginTop:3 }}>{item.code}</div>
+                <div style={{ fontFamily:'DM Mono,monospace', fontSize:13, color:'#888', marginTop:3 }}>{item.code}</div>
               </div>
               <div style={{
-                padding:'3px 9px', borderRadius:6, fontSize:11, fontWeight:600,
+                padding:'3px 9px', borderRadius:6, fontSize:13, fontWeight:600,
                 background: isWarehouse ? '#1a2a1a' : '#2a2a1a',
                 color: isWarehouse ? '#22C55E' : '#FBB724',
                 border: `1px solid ${isWarehouse ? '#22C55E33' : '#FBB72433'}`,
@@ -720,7 +720,7 @@ function HistoryView({ history, onBack }) {
                   <div style={{ flex:1 }}>
                     <span style={{
                       color: isCheckout ? '#FBB724' : '#22C55E',
-                      fontSize:11, fontWeight:700, textTransform:'uppercase'
+                      fontSize:13, fontWeight:700, textTransform:'uppercase'
                     }}>
                       {isCheckout ? 'Pobrano' : 'Zwrócono'}
                     </span>
@@ -737,7 +737,7 @@ function HistoryView({ history, onBack }) {
                     <div key={item.id} style={{ display:'flex', alignItems:'center', gap:8, fontSize:12, color:'#888', padding:'2px 0' }}>
                       <span>{CATEGORIES[item.cat].icon}</span>
                       <span style={{ flex:1 }}>{item.name}</span>
-                      <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#555' }}>{item.code}</span>
+                      <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#888' }}>{item.code}</span>
                     </div>
                   ))}
                 </div>
