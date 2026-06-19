@@ -89,7 +89,7 @@ const STYLES = `
 
   .search-input {
     width: 100%; background: #141414; border: 1px solid #202020; border-radius: 9px;
-    padding: 10px 14px; color: #ddd; font: 400 14px/1 'Barlow',sans-serif;
+    padding: 10px 14px; color: #ddd; font: 400 16px/1 'Barlow',sans-serif;
     outline: none;
   }
   .search-input:focus { border-color: #333; }
@@ -97,11 +97,11 @@ const STYLES = `
   .admin-input {
     width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a;
     border-radius: 8px; padding: 11px 14px;
-    color: #ddd; font: 400 14px/1 'Barlow',sans-serif;
+    color: #ddd; font: 400 16px/1 'Barlow',sans-serif;
     outline: none; transition: border-color .15s;
   }
   .admin-input:focus { border-color: #555; }
-  .admin-input::placeholder { color: #555; }
+  .admin-input::placeholder { color: #aaa; }
 
   .scanner-overlay {
     position: fixed; inset: 0; background: #000; z-index: 1000;
@@ -428,7 +428,7 @@ function UsersTab({ users, onSaveUsers }) {
               value={role} onChange={e => setRole(e.target.value)} />
 
             <div>
-              <div style={{ color: '#666', fontSize: 12, marginBottom: 8 }}>Kolor awatara</div>
+              <div style={{ color: '#666', fontSize: 15, marginBottom: 8 }}>Kolor awatara</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {PRESET_COLORS.map(c => (
                   <div key={c} onClick={() => setSelectedColor(c)} style={{
