@@ -89,7 +89,7 @@ const STYLES = `
 
   .search-input {
     width: 100%; background: #141414; border: 1px solid #202020; border-radius: 9px;
-    padding: 10px 14px; color: #ddd; font: 400 16px/1 'Barlow',sans-serif;
+    padding: 10px 14px; color: #ddd; font: 400 14px/1 'Barlow',sans-serif;
     outline: none;
   }
   .search-input:focus { border-color: #333; }
@@ -97,11 +97,11 @@ const STYLES = `
   .admin-input {
     width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a;
     border-radius: 8px; padding: 11px 14px;
-    color: #ddd; font: 400 16px/1 'Barlow',sans-serif;
+    color: #ddd; font: 400 14px/1 'Barlow',sans-serif;
     outline: none; transition: border-color .15s;
   }
   .admin-input:focus { border-color: #555; }
-  .admin-input::placeholder { color: #aaa; }
+  .admin-input::placeholder { color: #555; }
 
   .scanner-overlay {
     position: fixed; inset: 0; background: #000; z-index: 1000;
@@ -428,7 +428,7 @@ function UsersTab({ users, onSaveUsers }) {
               value={role} onChange={e => setRole(e.target.value)} />
 
             <div>
-              <div style={{ color: '#666', fontSize: 15, marginBottom: 8 }}>Kolor awatara</div>
+              <div style={{ color: '#666', fontSize: 12, marginBottom: 8 }}>Kolor awatara</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {PRESET_COLORS.map(c => (
                   <div key={c} onClick={() => setSelectedColor(c)} style={{
@@ -465,14 +465,169 @@ function UsersTab({ users, onSaveUsers }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ADMIN — IMPORT PANEL
+// ─────────────────────────────────────────────────────────────────────────────
+function ImportPanel({ equipment, onSaveEquipment, onClose }) {
+  const [raw,    setRaw]    = useState('');
+  const [parsed, setParsed] = useState([]);
+  const [done,   setDone]   = useState(false);
+
+  const parseText = (text) => {
+    if (!text.trim()) { setParsed([]); return; }
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    const items = lines.map(line => {
+      // Excel kopiuje jako tab-separated, CSV jako comma
+      const sep   = line.includes('\t') ? '\t' : ',';
+      const parts = line.split(sep).map(p => p.trim().replace(/^"|"$/g, ''));
+      const code  = (parts[0] || '').toUpperCase().trim();
+      const name  = (parts[1] || '').trim();
+      const rawCat = (parts[2] || '').toUpperCase().trim();
+      const cat   = Object.keys(CATEGORIES).includes(rawCat) ? rawCat : 'INNE';
+      const isDup = !!equipment.find(e => e.code === code);
+      const valid = !!(code && name);
+      return { code, name, cat, isDup, valid };
+    });
+    setParsed(items);
+  };
+
+  const toImport  = parsed.filter(i => i.valid && !i.isDup);
+  const dupCount  = parsed.filter(i => i.isDup).length;
+  const badCount  = parsed.filter(i => !i.valid).length;
+
+  const handleImport = () => {
+    const newItems = toImport.map(item => ({
+      id: 'e' + Date.now() + '_' + Math.random().toString(36).slice(2),
+      code: item.code,
+      name: item.name,
+      cat:  item.cat,
+      location: 'warehouse',
+    }));
+    onSaveEquipment([...equipment, ...newItems]);
+    setDone(true);
+  };
+
+  if (done) {
+    return (
+      <div className="card slide-up" style={{ padding: 20, marginBottom: 14, textAlign: 'center' }}>
+        <div style={{ fontSize: 36, marginBottom: 8 }}>✅</div>
+        <div style={{ color: '#22C55E', fontWeight: 700, fontSize: 16, marginBottom: 4 }}>
+          Zaimportowano {toImport.length} elementów!
+        </div>
+        <div style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>
+          Wszystkie trafiły do magazynu.
+        </div>
+        <button className="btn-primary" onClick={onClose}>Gotowe</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card slide-up" style={{ padding: 16, marginBottom: 14 }}>
+      <div style={{ color: '#888', fontSize: 11, marginBottom: 10,
+        textTransform: 'uppercase', letterSpacing: '.08em' }}>
+        📥 Import z Excela
+      </div>
+
+      {/* Instrukcja */}
+      <div style={{ background: '#1a1a1a', borderRadius: 8, padding: 12, marginBottom: 12,
+        border: '1px solid #2a2a2a', fontSize: 13, color: '#aaa', lineHeight: 1.6 }}>
+        <strong style={{ color: '#FBB724' }}>Jak to zrobić:</strong><br />
+        1. Otwórz plik Excel z bazą sprzętu<br />
+        2. Zaznacz kolumny <strong style={{ color: '#fff' }}>KOD NAKLEJKI</strong>, <strong style={{ color: '#fff' }}>NAZWA W APLIKACJI</strong>, <strong style={{ color: '#fff' }}>KATEGORIA</strong><br />
+        3. Skopiuj (Cmd+C)<br />
+        4. Kliknij poniżej i wklej (Cmd+V)
+      </div>
+
+      {/* Textarea */}
+      <textarea
+        value={raw}
+        onChange={e => { setRaw(e.target.value); parseText(e.target.value); }}
+        placeholder={"16000005134\tGenerator Broncolor Scoro 3200S\tGENE\n16000005088\tGenerator Broncolor Scoro 3200S\tGENE\n..."}
+        style={{
+          width: '100%', minHeight: 130, background: '#111',
+          border: '2px solid #FBB72444', borderRadius: 10,
+          padding: 12, color: '#FBB724',
+          fontFamily: 'DM Mono, monospace', fontSize: 12,
+          outline: 'none', resize: 'vertical', lineHeight: 1.5,
+        }}
+        onFocus={e => e.target.style.borderColor = '#FBB724'}
+        onBlur={e => e.target.style.borderColor = '#FBB72444'}
+      />
+
+      {/* Podgląd */}
+      {parsed.length > 0 && (
+        <div className="slide-up" style={{ marginTop: 12 }}>
+
+          {/* Statystyki */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+            <div style={{ background: '#1a2a1a', border: '1px solid #22C55E33', borderRadius: 8,
+              padding: '6px 12px', color: '#22C55E', fontSize: 13, fontWeight: 600 }}>
+              ✓ {toImport.length} do importu
+            </div>
+            {dupCount > 0 && (
+              <div style={{ background: '#2a2010', border: '1px solid #FBB72433', borderRadius: 8,
+                padding: '6px 12px', color: '#FBB724', fontSize: 13 }}>
+                ⚠ {dupCount} duplikatów (pominięte)
+              </div>
+            )}
+            {badCount > 0 && (
+              <div style={{ background: '#2a1a1a', border: '1px solid #F8717133', borderRadius: 8,
+                padding: '6px 12px', color: '#F87171', fontSize: 13 }}>
+                ✕ {badCount} błędnych wierszy
+              </div>
+            )}
+          </div>
+
+          {/* Tabela podglądu */}
+          <div style={{ background: '#111', borderRadius: 8, padding: '6px 10px',
+            marginBottom: 12, maxHeight: 200, overflowY: 'auto' }}>
+            {parsed.slice(0, 30).map((item, i) => (
+              <div key={i} style={{
+                display: 'flex', gap: 8, fontSize: 12,
+                padding: '4px 0', borderBottom: '1px solid #1a1a1a',
+                color: !item.valid ? '#F87171' : item.isDup ? '#FBB724' : '#aaa',
+              }}>
+                <span style={{ fontFamily: 'DM Mono,monospace', flexShrink: 0, minWidth: 100 }}>
+                  {item.code || '—'}
+                </span>
+                <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {item.name || '—'}
+                </span>
+                <span style={{ color: '#555', flexShrink: 0 }}>{item.cat}</span>
+                {item.isDup && <span style={{ color: '#FBB724', flexShrink: 0 }}>duplikat</span>}
+                {!item.valid && <span style={{ color: '#F87171', flexShrink: 0 }}>błąd</span>}
+              </div>
+            ))}
+            {parsed.length > 30 && (
+              <div style={{ color: '#555', fontSize: 11, padding: '6px 0' }}>
+                ... i {parsed.length - 30} więcej
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-primary" onClick={handleImport} disabled={toImport.length === 0}>
+              ✓ Importuj {toImport.length} elementów →
+            </button>
+            <button className="btn-ghost" onClick={onClose} style={{ flexShrink: 0 }}>
+              Anuluj
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ADMIN — EQUIPMENT TAB
 // ─────────────────────────────────────────────────────────────────────────────
 function EquipmentTab({ equipment, onSaveEquipment }) {
-  const [showForm, setShowForm] = useState(false);
-  const [search,   setSearch]   = useState('');
-  const [code,     setCode]     = useState('');
-  const [name,     setName]     = useState('');
-  const [cat,      setCat]      = useState('LAMP');
+  const [mode,   setMode]   = useState('list'); // 'list' | 'add' | 'import'
+  const [search, setSearch] = useState('');
+  const [code,   setCode]   = useState('');
+  const [name,   setName]   = useState('');
+  const [cat,    setCat]    = useState('LAMP');
 
   const handleAdd = () => {
     const trimCode = code.trim().toUpperCase();
@@ -488,7 +643,7 @@ function EquipmentTab({ equipment, onSaveEquipment }) {
       cat,
       location: 'warehouse',
     }]);
-    setCode(''); setName(''); setCat('LAMP'); setShowForm(false);
+    setCode(''); setName(''); setCat('LAMP'); setMode('list');
   };
 
   const handleDelete = (itemId) => {
@@ -504,15 +659,38 @@ function EquipmentTab({ equipment, onSaveEquipment }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 14, gap: 8, flexWrap: 'wrap' }}>
         <div style={{ color: '#888', fontSize: 13 }}>{equipment.length} elementów</div>
-        <button className="btn-primary" onClick={() => setShowForm(!showForm)}
-          style={{ width: 'auto', padding: '8px 16px', fontSize: 13 }}>
-          {showForm ? '✕ Anuluj' : '+ Dodaj sprzęt'}
-        </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => setMode(mode === 'import' ? 'list' : 'import')}
+            style={{
+              background: mode === 'import' ? '#1a1a1a' : '#1a2a1a',
+              color: mode === 'import' ? '#888' : '#22C55E',
+              border: `1px solid ${mode === 'import' ? '#333' : '#22C55E44'}`,
+              borderRadius: 8, padding: '8px 12px', fontSize: 12,
+              fontWeight: 600, cursor: 'pointer', fontFamily: 'Barlow,sans-serif',
+            }}>
+            {mode === 'import' ? '✕ Anuluj' : '📥 Import z Excela'}
+          </button>
+          <button className="btn-primary" onClick={() => setMode(mode === 'add' ? 'list' : 'add')}
+            style={{ width: 'auto', padding: '8px 12px', fontSize: 12 }}>
+            {mode === 'add' ? '✕ Anuluj' : '+ Dodaj'}
+          </button>
+        </div>
       </div>
 
-      {showForm && (
+      {/* Import panel */}
+      {mode === 'import' && (
+        <ImportPanel
+          equipment={equipment}
+          onSaveEquipment={onSaveEquipment}
+          onClose={() => setMode('list')}
+        />
+      )}
+
+      {/* Manual add form */}
+      {mode === 'add' && (
         <div className="card slide-up" style={{ padding: 16, marginBottom: 14 }}>
           <div style={{ color: '#888', fontSize: 11, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '.08em' }}>
             Nowy element sprzętu
@@ -520,7 +698,7 @@ function EquipmentTab({ equipment, onSaveEquipment }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <input
               className="admin-input"
-              placeholder="Kod z naklejki (np. 00001 lub LAMP-011) *"
+              placeholder="Kod z naklejki (np. 16000005134) *"
               value={code}
               onChange={e => setCode(e.target.value.toUpperCase())}
               style={{ fontFamily: 'DM Mono,monospace', letterSpacing: '.05em' }}
