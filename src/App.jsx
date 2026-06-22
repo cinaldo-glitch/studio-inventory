@@ -1402,6 +1402,43 @@ export default function App() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  // ── Realtime — nasłuchuj zmian z innych urządzeń ───────────────────────
+  useEffect(() => {
+    const channel = supabase
+      .channel('studio-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment' },
+        (payload) => {
+          if (payload.eventType === 'UPDATE') {
+            setEquipment(prev => prev.map(e => e.id === payload.new.id ? payload.new : e));
+          } else if (payload.eventType === 'INSERT') {
+            setEquipment(prev => prev.find(e => e.id === payload.new.id) ? prev : [...prev, payload.new]);
+          } else if (payload.eventType === 'DELETE') {
+            setEquipment(prev => prev.filter(e => e.id !== payload.old.id));
+          }
+        }
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setUsers(prev => prev.find(u => u.id === payload.new.id) ? prev : [...prev, payload.new]);
+          } else if (payload.eventType === 'DELETE') {
+            setUsers(prev => prev.filter(u => u.id !== payload.old.id));
+          }
+        }
+      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'history' },
+        (payload) => {
+          const h = payload.new;
+          setHistory(prev => {
+            if (prev.find(x => x.time === h.time && x.userId === h.user_id)) return prev;
+            return [...prev, { mode: h.mode, userId: h.user_id, items: h.items, time: h.time }];
+          });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   // ── Zapis użytkowników (wykrywa dodane/usunięte) ────────────────────────
   const handleSaveUsers = async (newUsers) => {
     const added   = newUsers.filter(u => !users.find(o => o.id === u.id));
