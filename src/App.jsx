@@ -278,7 +278,7 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
         <Scanner
           onScan={handleDetected}
           onError={(err) => console.error('Scanner error:', err)}
-          constraints={{ facingMode: 'environment' }}
+          constraints={{ facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }}
           scanDelay={80}
           formats={['code_128','code_39','ean_13','ean_8','upc_a','upc_e','codabar','itf','qr_code','data_matrix']}
           styles={{
