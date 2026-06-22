@@ -1,6 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { QRCodeSVG } from 'qrcode.react';
+import { createClient } from '@supabase/supabase-js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUPABASE
+// ─────────────────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://luqsaqktiglquspuxrxx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1cXNhcWt0aWdscXVzcHV4cnh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMTQ5MzYsImV4cCI6MjA5NzY5MDkzNn0.WxE4wVBKlLMNrcGd6989_Vi0TQmGgEc-Ayz9m4ytmIQ';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STYLES
@@ -178,43 +186,6 @@ const PRESET_COLORS = [
 ];
 
 const DEFAULT_ADMIN_PASSWORD = 'admin1';
-const STORAGE_KEY    = 'studio_inventory_v2';
-const STORAGE_KEY_V1 = 'studio_inventory_v1';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// STATE HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
-function loadState() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const p = JSON.parse(saved);
-      return {
-        equipment:     p.equipment     || INITIAL_EQUIPMENT,
-        history:       p.history       || [],
-        users:         p.users         || DEFAULT_USERS,
-        adminPassword: p.adminPassword || DEFAULT_ADMIN_PASSWORD,
-      };
-    }
-    // Migrate from v1
-    const old = localStorage.getItem(STORAGE_KEY_V1);
-    if (old) {
-      const p = JSON.parse(old);
-      return {
-        equipment:     p.equipment || INITIAL_EQUIPMENT,
-        history:       p.history   || [],
-        users:         DEFAULT_USERS,
-        adminPassword: DEFAULT_ADMIN_PASSWORD,
-      };
-    }
-  } catch (e) { console.error('Load error:', e); }
-  return { equipment: INITIAL_EQUIPMENT, history: [], users: DEFAULT_USERS, adminPassword: DEFAULT_ADMIN_PASSWORD };
-}
-
-function saveState(state) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-  catch (e) { console.error('Save error:', e); }
-}
 
 function now() {
   const d = new Date();
@@ -1391,49 +1362,134 @@ function PrintCodesView({ equipment, onBack }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ROOT APP
+// ROOT APP — z Supabase
 // ─────────────────────────────────────────────────────────────────────────────
 export default function App() {
-  const initial = loadState();
-  const [equipment,     setEquipment]     = useState(initial.equipment);
-  const [history,       setHistory]       = useState(initial.history);
-  const [users,         setUsers]         = useState(initial.users);
-  const [adminPassword]                   = useState(initial.adminPassword);
-  const [currentUser,   setCurrentUser]   = useState(null);
-  const [view,          setView]          = useState('login');
-  const [scanMode,      setScanMode]      = useState(null);
+  const [equipment,   setEquipment]   = useState([]);
+  const [history,     setHistory]     = useState([]);
+  const [users,       setUsers]       = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [dbError,     setDbError]     = useState(false);
+  const [adminPassword]               = useState(DEFAULT_ADMIN_PASSWORD);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [view,        setView]        = useState('login');
+  const [scanMode,    setScanMode]    = useState(null);
 
-  useEffect(() => {
-    saveState({ equipment, history, users, adminPassword });
-  }, [equipment, history, users, adminPassword]);
+  // ── Pobierz wszystkie dane z Supabase ──────────────────────────────────
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    setDbError(false);
+    try {
+      const [eqRes, usersRes, histRes] = await Promise.all([
+        supabase.from('equipment').select('*'),
+        supabase.from('users').select('*'),
+        supabase.from('history').select('*').order('id', { ascending: true }),
+      ]);
+      if (eqRes.error) throw eqRes.error;
+      if (usersRes.error) throw usersRes.error;
+      if (histRes.error) throw histRes.error;
+      setEquipment(eqRes.data || []);
+      setUsers(usersRes.data || []);
+      setHistory((histRes.data || []).map(h => ({
+        mode: h.mode, userId: h.user_id, items: h.items, time: h.time,
+      })));
+    } catch (e) {
+      console.error('DB error:', e);
+      setDbError(true);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // ── Zapis użytkowników (wykrywa dodane/usunięte) ────────────────────────
+  const handleSaveUsers = async (newUsers) => {
+    const added   = newUsers.filter(u => !users.find(o => o.id === u.id));
+    const deleted = users.filter(u => !newUsers.find(n => n.id === u.id));
+    setUsers(newUsers);
+    if (added.length)   await supabase.from('users').insert(added);
+    if (deleted.length) await Promise.all(deleted.map(u => supabase.from('users').delete().eq('id', u.id)));
+  };
+
+  // ── Zapis sprzętu (wykrywa dodane/usunięte) ─────────────────────────────
+  const handleSaveEquipment = async (newEquipment) => {
+    const added   = newEquipment.filter(e => !equipment.find(o => o.id === e.id));
+    const deleted = equipment.filter(e => !newEquipment.find(n => n.id === e.id));
+    setEquipment(newEquipment);
+    if (added.length)   await supabase.from('equipment').insert(added);
+    if (deleted.length) await Promise.all(deleted.map(e => supabase.from('equipment').delete().eq('id', e.id)));
+  };
+
+  // ── Pobieranie / zwracanie sprzętu ─────────────────────────────────────
+  const handleConfirm = async ({ mode, cart }) => {
+    const newLocation = mode === 'checkout' ? currentUser.id : 'warehouse';
+    setEquipment(prev => prev.map(item =>
+      cart.find(c => c.id === item.id) ? { ...item, location: newLocation } : item
+    ));
+    const histEntry = {
+      mode, userId: currentUser.id,
+      items: cart.map(c => ({ id: c.id, code: c.code, name: c.name, cat: c.cat })),
+      time: now(),
+    };
+    setHistory(prev => [...prev, histEntry]);
+    await Promise.all([
+      ...cart.map(item => supabase.from('equipment').update({ location: newLocation }).eq('id', item.id)),
+      supabase.from('history').insert({
+        mode, user_id: currentUser.id, items: histEntry.items, time: histEntry.time,
+      }),
+    ]);
+  };
+
+  // ── Reset ────────────────────────────────────────────────────────────────
+  const handleReset = async () => {
+    if (!confirm('Czy na pewno zresetować WSZYSTKIE dane?\n\nUsuwa cały sprzęt, użytkowników i historię z bazy danych.')) return;
+    await Promise.all([
+      supabase.from('history').delete().neq('id', 0),
+      supabase.from('equipment').delete().neq('id', ''),
+      supabase.from('users').delete().neq('id', ''),
+    ]);
+    setEquipment([]); setHistory([]); setUsers([]);
+  };
 
   const handleLogin  = (user) => { setCurrentUser(user); setView('home'); };
   const handleLogout = ()     => { setCurrentUser(null); setView('login'); };
-
   const handleAction = (action) => {
     if (action === 'checkout' || action === 'return') { setScanMode(action); setView('scan'); }
     else setView(action);
   };
 
-  const handleConfirm = ({ mode, cart }) => {
-    setEquipment(prev => prev.map(item =>
-      cart.find(c => c.id === item.id) ? { ...item, location: mode === 'checkout' ? currentUser.id : 'warehouse' } : item
-    ));
-    setHistory(prev => [...prev, {
-      mode, userId: currentUser.id,
-      items: cart.map(c => ({ id: c.id, code: c.code, name: c.name, cat: c.cat })),
-      time: now(),
-    }]);
-  };
+  // ── Ekran ładowania ──────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div style={{ background: '#0A0A0A', minHeight: '100vh', display: 'flex',
+        flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+        <style>{STYLES}</style>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div style={{ fontSize: 48 }}>📷</div>
+        <div style={{ color: '#fff', fontWeight: 700, fontSize: 20 }}>Studio Inventory</div>
+        <div style={{ color: '#666', fontSize: 14 }}>Łączenie z bazą danych...</div>
+        <div style={{ width: 36, height: 36, border: '3px solid #333', borderTopColor: '#FBB724',
+          borderRadius: 18, animation: 'spin 1s linear infinite' }} />
+      </div>
+    );
+  }
 
-  const handleReset = () => {
-    if (!confirm('Czy na pewno zresetować wszystkie dane?\n\nTo cofnie WSZYSTKIE operacje i przywróci domyślnych użytkowników.')) return;
-    setEquipment(INITIAL_EQUIPMENT);
-    setHistory([]);
-    setUsers(DEFAULT_USERS);
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(STORAGE_KEY_V1);
-  };
+  if (dbError) {
+    return (
+      <div style={{ background: '#0A0A0A', minHeight: '100vh', display: 'flex',
+        flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 }}>
+        <style>{STYLES}</style>
+        <div style={{ fontSize: 48 }}>⚠️</div>
+        <div style={{ color: '#fff', fontWeight: 700, fontSize: 20 }}>Błąd połączenia</div>
+        <div style={{ color: '#888', fontSize: 14, textAlign: 'center' }}>
+          Nie można połączyć się z bazą danych. Sprawdź internet.
+        </div>
+        <button className="btn-primary" onClick={fetchAll} style={{ maxWidth: 240 }}>
+          🔄 Spróbuj ponownie
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: '#0A0A0A', minHeight: '100vh', color: '#fff', fontFamily: 'Barlow,sans-serif' }}>
@@ -1449,7 +1505,7 @@ export default function App() {
       )}
       {view === 'admin' && (
         <AdminView users={users} equipment={equipment}
-          onSaveUsers={setUsers} onSaveEquipment={setEquipment}
+          onSaveUsers={handleSaveUsers} onSaveEquipment={handleSaveEquipment}
           onBack={() => setView('login')} />
       )}
       {view === 'home' && currentUser && (
