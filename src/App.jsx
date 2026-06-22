@@ -279,6 +279,8 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
           onScan={handleDetected}
           onError={(err) => console.error('Scanner error:', err)}
           constraints={{ facingMode: 'environment' }}
+          scanDelay={80}
+          formats={['code_128','code_39','ean_13','ean_8','upc_a','upc_e','codabar','itf','qr_code','data_matrix']}
           styles={{
             container: { width: '100%', height: '100%' },
             video: { width: '100%', height: '100%', objectFit: 'cover' }
@@ -286,11 +288,24 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
         />
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
           display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* Prostokątny celownik — lepszy dla kodów kreskowych 1D */}
           <div style={{
-            width: '70%', maxWidth: 280, aspectRatio: '1',
-            border: '3px solid #FBB724', borderRadius: 16,
-            boxShadow: '0 0 0 9999px rgba(0,0,0,0.4)'
-          }} />
+            width: '85%', maxWidth: 340, height: 120,
+            border: '3px solid #FBB724', borderRadius: 12,
+            boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
+            position: 'relative',
+          }}>
+            {/* Narożniki dla lepszej widoczności */}
+            {[{top:0,left:0},{top:0,right:0},{bottom:0,left:0},{bottom:0,right:0}].map((pos, i) => (
+              <div key={i} style={{
+                position: 'absolute', width: 20, height: 20,
+                borderColor: '#FBB724', borderStyle: 'solid', borderWidth: 0,
+                ...(pos.top === 0 ? { borderTopWidth: 4 } : { borderBottomWidth: 4 }),
+                ...(pos.left === 0 ? { borderLeftWidth: 4 } : { borderRightWidth: 4 }),
+                ...pos,
+              }} />
+            ))}
+          </div>
         </div>
         {lastFeedback && (
           <div className="slide-up" style={{
