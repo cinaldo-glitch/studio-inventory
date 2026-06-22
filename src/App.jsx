@@ -1439,6 +1439,15 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  // ── iOS fix: odśwież gdy aplikacja wraca na pierwszy plan ──────────────
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchAll();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [fetchAll]);
+
   // ── Zapis użytkowników (wykrywa dodane/usunięte) ────────────────────────
   const handleSaveUsers = async (newUsers) => {
     const added   = newUsers.filter(u => !users.find(o => o.id === u.id));
