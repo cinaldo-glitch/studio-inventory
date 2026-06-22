@@ -278,7 +278,7 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
         <Scanner
           onScan={handleDetected}
           onError={(err) => console.error('Scanner error:', err)}
-          constraints={{ facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }}
+          constraints={{ facingMode: 'environment' }}
           scanDelay={80}
           formats={['code_128','code_39','ean_13','ean_8','upc_a','upc_e','codabar','itf','qr_code','data_matrix']}
           styles={{
@@ -770,6 +770,105 @@ function EquipmentTab({ equipment, onSaveEquipment }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ADMIN — STATUS TAB (kto ma jaki sprzęt)
+// ─────────────────────────────────────────────────────────────────────────────
+function StatusTab({ users, equipment }) {
+  const warehouseItems = equipment.filter(e => e.location === 'warehouse');
+
+  return (
+    <div>
+      {/* Podsumowanie */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 18 }}>
+        <div className="card" style={{ padding: 14, textAlign: 'center' }}>
+          <div style={{ color: '#22C55E', fontWeight: 800, fontSize: 28, fontFamily: 'DM Mono,monospace' }}>
+            {warehouseItems.length}
+          </div>
+          <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>W magazynie</div>
+        </div>
+        <div className="card" style={{ padding: 14, textAlign: 'center' }}>
+          <div style={{ color: '#FBB724', fontWeight: 800, fontSize: 28, fontFamily: 'DM Mono,monospace' }}>
+            {equipment.length - warehouseItems.length}
+          </div>
+          <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>U fotografów</div>
+        </div>
+      </div>
+
+      {/* Każdy użytkownik */}
+      {users.map(user => {
+        const userItems = equipment.filter(e => e.location === user.id);
+        return (
+          <div key={user.id} style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <Avatar user={user} size={32} />
+              <div style={{ flex: 1 }}>
+                <div style={{ color: '#eee', fontWeight: 600, fontSize: 14 }}>{user.name}</div>
+              </div>
+              <div style={{
+                background: userItems.length > 0 ? '#FBB72422' : '#1a1a1a',
+                color: userItems.length > 0 ? '#FBB724' : '#555',
+                fontFamily: 'DM Mono,monospace', fontWeight: 700, fontSize: 13,
+                padding: '3px 10px', borderRadius: 6,
+                border: `1px solid ${userItems.length > 0 ? '#FBB72444' : '#2a2a2a'}`,
+              }}>
+                {userItems.length} szt.
+              </div>
+            </div>
+            {userItems.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 42 }}>
+                {userItems.map(item => (
+                  <div key={item.id} className="card" style={{ padding: '8px 12px',
+                    display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16 }}>{CATEGORIES[item.cat]?.icon || '📦'}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: '#ccc', fontSize: 12, fontWeight: 500,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.name}
+                      </div>
+                    </div>
+                    <span style={{ fontFamily: 'DM Mono,monospace', fontSize: 10, color: '#666', flexShrink: 0 }}>
+                      {item.code}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ paddingLeft: 42, color: '#444', fontSize: 12 }}>Brak sprzętu</div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Magazyn */}
+      {warehouseItems.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ color: '#888', fontSize: 11, fontWeight: 700, letterSpacing: '.1em',
+            textTransform: 'uppercase', marginBottom: 8 }}>
+            📦 W magazynie ({warehouseItems.length})
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {warehouseItems.map(item => (
+              <div key={item.id} className="card" style={{ padding: '8px 12px',
+                display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 16 }}>{CATEGORIES[item.cat]?.icon || '📦'}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ color: '#ccc', fontSize: 12, fontWeight: 500,
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {item.name}
+                  </div>
+                </div>
+                <span style={{ fontFamily: 'DM Mono,monospace', fontSize: 10, color: '#666', flexShrink: 0 }}>
+                  {item.code}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ADMIN — MAIN VIEW
 // ─────────────────────────────────────────────────────────────────────────────
 function AdminView({ users, equipment, onSaveUsers, onSaveEquipment, onBack }) {
@@ -786,12 +885,16 @@ function AdminView({ users, equipment, onSaveUsers, onSaveEquipment, onBack }) {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20,
+      <div style={{ display: 'flex', gap: 3, marginBottom: 20,
         background: '#141414', borderRadius: 10, padding: 4, border: '1px solid #202020' }}>
-        {[{ key: 'users', label: '👤 Użytkownicy' }, { key: 'equipment', label: '📦 Sprzęt' }].map(t => (
+        {[
+          { key: 'status',    label: '📊 Stan' },
+          { key: 'users',     label: '👤 Użytkownicy' },
+          { key: 'equipment', label: '📦 Sprzęt' },
+        ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
-            flex: 1, padding: '10px', borderRadius: 7, border: 'none', cursor: 'pointer',
-            fontFamily: 'Barlow,sans-serif', fontWeight: 600, fontSize: 14,
+            flex: 1, padding: '9px 4px', borderRadius: 7, border: 'none', cursor: 'pointer',
+            fontFamily: 'Barlow,sans-serif', fontWeight: 600, fontSize: 12,
             background: tab === t.key ? '#FBB724' : 'transparent',
             color: tab === t.key ? '#0C0C0C' : '#888',
             transition: 'all .15s',
@@ -799,10 +902,9 @@ function AdminView({ users, equipment, onSaveUsers, onSaveEquipment, onBack }) {
         ))}
       </div>
 
-      {tab === 'users'
-        ? <UsersTab users={users} onSaveUsers={onSaveUsers} />
-        : <EquipmentTab equipment={equipment} onSaveEquipment={onSaveEquipment} />
-      }
+      {tab === 'status'    && <StatusTab users={users} equipment={equipment} />}
+      {tab === 'users'     && <UsersTab users={users} onSaveUsers={onSaveUsers} />}
+      {tab === 'equipment' && <EquipmentTab equipment={equipment} onSaveEquipment={onSaveEquipment} />}
     </div>
   );
 }
@@ -1144,19 +1246,61 @@ function CatalogView({ equipment, users, onBack }) {
 // HISTORY
 // ─────────────────────────────────────────────────────────────────────────────
 function HistoryView({ history, users, onBack }) {
+  const [filterUser, setFilterUser] = useState('all');
+  const [filterType, setFilterType] = useState('all');
+  const [sortOrder,  setSortOrder]  = useState('desc'); // desc = najnowsze pierwsze
+
+  const filtered = [...history]
+    .filter(tx => filterUser === 'all' || tx.userId === filterUser)
+    .filter(tx => filterType === 'all' || tx.mode === filterType)
+    .sort((a, b) => sortOrder === 'desc' ? 1 : -1); // history is already chronological
+
+  const displayed = sortOrder === 'desc' ? [...filtered].reverse() : filtered;
+
+  const selectStyle = {
+    background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8,
+    padding: '8px 10px', color: '#ddd', fontSize: 12, outline: 'none',
+    fontFamily: 'Barlow,sans-serif', cursor: 'pointer', flex: 1,
+  };
+
   return (
     <div className="fade-in" style={{ padding: '16px 20px 40px', maxWidth: 480, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
         <button className="btn-ghost" onClick={onBack} style={{ padding: '8px 12px' }}>←</button>
         <div style={{ color: '#fff', fontWeight: 700, fontSize: 17 }}>Historia operacji</div>
+        <div style={{ color: '#888', fontSize: 12, marginLeft: 'auto' }}>
+          {displayed.length} / {history.length}
+        </div>
       </div>
-      {history.length === 0 ? (
+
+      {/* Filtry */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+        <select value={filterUser} onChange={e => setFilterUser(e.target.value)} style={selectStyle}>
+          <option value="all">Wszyscy</option>
+          {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+        </select>
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} style={selectStyle}>
+          <option value="all">Pobrano i zwrócono</option>
+          <option value="checkout">📤 Tylko pobrano</option>
+          <option value="return">📥 Tylko zwrócono</option>
+        </select>
+        <button onClick={() => setSortOrder(o => o === 'desc' ? 'asc' : 'desc')}
+          style={{
+            background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8,
+            padding: '8px 12px', color: '#aaa', fontSize: 12, cursor: 'pointer',
+            fontFamily: 'Barlow,sans-serif', flexShrink: 0,
+          }}>
+          {sortOrder === 'desc' ? '↓ Najnowsze' : '↑ Najstarsze'}
+        </button>
+      </div>
+
+      {displayed.length === 0 ? (
         <div style={{ color: '#555', textAlign: 'center', padding: 60, fontSize: 14 }}>
-          📋<br /><br />Brak operacji do wyświetlenia
+          📋<br /><br />Brak operacji dla wybranych filtrów
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {[...history].reverse().map((tx, idx) => {
+          {displayed.map((tx, idx) => {
             const user = users.find(u => u.id === tx.userId);
             const isCheckout = tx.mode === 'checkout';
             return (
