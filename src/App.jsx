@@ -511,13 +511,50 @@ function LoginView({ users, onLogin, onReset, onPrintCodes, onAdmin }) {
   );
 }
 
-function HomeView({ user, equipment, history, onAction, onLogout }) {
+function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
+  const [selectedItem, setSelectedItem] = useState(null);
   const assignedItems = equipment.filter(e => e.assigned_to===user.id);
   const myItems = equipment.filter(e => e.location===user.id && !e.assigned_to);
   const warehouseCount = equipment.filter(e => e.location==='warehouse').length;
   const myHistory = history.filter(h => h.userId===user.id).length;
+
   return (
     <div className="fade-in" style={{ padding:'20px 20px 40px', maxWidth:480, margin:'0 auto' }}>
+
+      {selectedItem && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', zIndex:500, display:'flex', alignItems:'flex-end', justifyContent:'center' }} onClick={()=>setSelectedItem(null)}>
+          <div className="slide-up" onClick={e=>e.stopPropagation()} style={{ background:'#1a1a1a', borderRadius:'16px 16px 0 0', padding:24, width:'100%', maxWidth:480, paddingBottom:40 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+              <span style={{ fontSize:28 }}>{CATEGORIES[selectedItem.cat]?.icon||'📦'}</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ color:'#fff', fontWeight:700, fontSize:15, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{selectedItem.name}</div>
+                <div style={{ fontFamily:'DM Mono,monospace', fontSize:12, color:'#666', marginTop:2 }}>{selectedItem.code}</div>
+              </div>
+            </div>
+            {selectedItem.assigned_to === user.id ? (
+              <>
+                <div style={{ color:'#818CF8', fontSize:13, marginBottom:16, padding:'10px 14px', background:'#818CF811', borderRadius:8, border:'1px solid #818CF822' }}>
+                  📌 Ten sprzęt jest przypisany do Ciebie na stałe.
+                </div>
+                <button className="btn-primary" onClick={()=>{ onAssign(selectedItem.id, null); setSelectedItem(null); }} style={{ background:'#F87171', marginBottom:10 }}>
+                  📤 Zdaj sprzęt i usuń przypisanie
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ color:'#888', fontSize:13, marginBottom:16, lineHeight:1.5 }}>
+                  Przypisz ten sprzęt do swojego konta — będzie Twój na stałe i nie pojawi się w puli do wypożyczenia.
+                </div>
+                <button className="btn-primary" onClick={()=>{ onAssign(selectedItem.id, user.id); setSelectedItem(null); }} style={{ marginBottom:10 }}>
+                  📌 Przypisz do siebie na stałe
+                </button>
+              </>
+            )}
+            <button className="btn-ghost" onClick={()=>setSelectedItem(null)} style={{ width:'100%', textAlign:'center' }}>Anuluj</button>
+          </div>
+        </div>
+      )}
+
       <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:24 }}>
         <Avatar user={user} size={46} />
         <div style={{ flex:1 }}>
@@ -526,6 +563,7 @@ function HomeView({ user, equipment, history, onAction, onLogout }) {
         </div>
         <button className="btn-ghost" onClick={onLogout} style={{ padding:'6px 10px', fontSize:11 }}>Wyloguj</button>
       </div>
+
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:24 }}>
         {[{val:myItems.length+assignedItems.length, color:'#FBB724', label:'U Ciebie'},{val:warehouseCount, color:'#22C55E', label:'Magazyn'},{val:myHistory, color:'#818CF8', label:'Twoje akcje'}].map(({val,color,label}) => (
           <div key={label} className="card" style={{ padding:14, textAlign:'center' }}>
@@ -537,15 +575,18 @@ function HomeView({ user, equipment, history, onAction, onLogout }) {
 
       {assignedItems.length>0 && (
         <div style={{ marginBottom:18 }}>
-          <div style={{ color:'#818CF8', fontSize:12, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:8 }}>📌 Sprzęt przypisany ({assignedItems.length})</div>
+          <div style={{ color:'#818CF8', fontSize:12, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:8 }}>
+            📌 Sprzęt przypisany ({assignedItems.length}) <span style={{ color:'#555', fontWeight:400, fontSize:10, textTransform:'none' }}>— dotknij by zarządzać</span>
+          </div>
           <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
             {assignedItems.map(item => (
-              <div key={item.id} className="card" style={{ padding:'10px 13px', display:'flex', alignItems:'center', gap:10, borderColor:'#818CF822' }}>
+              <div key={item.id} onClick={()=>setSelectedItem(item)} style={{ background:'#141414', border:'1.5px solid #818CF833', borderRadius:10, padding:'10px 13px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
                 <span style={{ fontSize:18 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ color:'#ccc', fontSize:13, fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div>
                 </div>
                 <span style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'#818CF8' }}>{item.code}</span>
+                <span style={{ color:'#555', fontSize:18 }}>›</span>
               </div>
             ))}
           </div>
@@ -554,15 +595,18 @@ function HomeView({ user, equipment, history, onAction, onLogout }) {
 
       {myItems.length>0 && (
         <div style={{ marginBottom:22 }}>
-          <div style={{ color:'#888', fontSize:12, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:10 }}>Sprzęt u Ciebie ({myItems.length})</div>
+          <div style={{ color:'#888', fontSize:12, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:8 }}>
+            Sprzęt u Ciebie ({myItems.length}) <span style={{ color:'#555', fontWeight:400, fontSize:10, textTransform:'none' }}>— dotknij by przypisać</span>
+          </div>
           <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
             {myItems.map(item => (
-              <div key={item.id} className="card" style={{ padding:'10px 13px', display:'flex', alignItems:'center', gap:10 }}>
+              <div key={item.id} onClick={()=>setSelectedItem(item)} style={{ background:'#141414', border:'1.5px solid #1E1E1E', borderRadius:10, padding:'10px 13px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
                 <span style={{ fontSize:18 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ color:'#ccc', fontSize:13, fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div>
                 </div>
                 <span style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'#888' }}>{item.code}</span>
+                <span style={{ color:'#555', fontSize:18 }}>›</span>
               </div>
             ))}
           </div>
@@ -943,7 +987,7 @@ export default function App() {
       {view==='login' && <LoginView users={users} onLogin={handleLogin} onReset={handleReset} onPrintCodes={()=>setView('print')} onAdmin={()=>setView('admin-login')} />}
       {view==='admin-login' && <AdminLoginView adminPassword={adminPassword} onLogin={()=>setView('admin')} onBack={()=>setView('login')} />}
       {view==='admin' && <AdminView users={users} equipment={equipment} onSaveUsers={handleSaveUsers} onSaveEquipment={handleSaveEquipment} onAssign={handleAssign} onBack={()=>setView('login')} />}
-      {view==='home' && currentUser && <HomeView user={currentUser} equipment={equipment} history={history} onAction={handleAction} onLogout={handleLogout} />}
+      {view==='home' && currentUser && <HomeView user={currentUser} equipment={equipment} history={history} onAction={handleAction} onLogout={handleLogout} onAssign={handleAssign} />}
       {view==='scan' && currentUser && <ScanView user={currentUser} equipment={equipment} users={users} mode={scanMode} onConfirm={handleConfirm} onBack={()=>setView('home')} />}
       {view==='catalog' && <CatalogView equipment={equipment} users={users} onBack={()=>setView('home')} />}
       {view==='history' && <HistoryView history={history} users={users} onBack={()=>setView('home')} />}
