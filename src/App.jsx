@@ -241,7 +241,7 @@ function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, log
           <div style={{ color:'#FBB724', fontSize:11, marginBottom:8, textTransform:'uppercase', letterSpacing:'.06em' }}>🔑 Dane logowania</div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             <input className="admin-input" placeholder="Login (np. tomasz.babinek) *" value={login} onChange={e=>onLoginChange(e.target.value.toLowerCase())} autoCapitalize="none" autoCorrect="off" />
-            <input className="admin-input" type="password" placeholder="Hasło *" value={password} onChange={e=>onPasswordChange(e.target.value)} />
+            <input className="admin-input" type="text" placeholder="Hasło *" value={password} onChange={e=>onPasswordChange(e.target.value)} />
           </div>
         </div>
         <div>
