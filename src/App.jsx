@@ -223,7 +223,7 @@ function ImportPanel({ equipment, onSaveEquipment, onClose }) {
 }
 
 // ── Formularz edycji użytkownika — poza komponentem (fix utraty fokusa) ────
-function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, selectedColor, onColorChange, initials, onSave, onCancel, saveLabel }) {
+function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, login, onLoginChange, password, onPasswordChange, selectedColor, onColorChange, initials, onSave, onCancel, saveLabel }) {
   return (
     <div className="card slide-up" style={{ padding:16, marginBottom:14, border:'1px solid #FBB72433' }}>
       <div style={{ color:'#888', fontSize:11, marginBottom:12, textTransform:'uppercase', letterSpacing:'.08em' }}>{title}</div>
@@ -237,6 +237,13 @@ function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, sel
       <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
         <input className="admin-input" placeholder="Imię i nazwisko *" value={name} onChange={e=>onNameChange(e.target.value)} />
         <input className="admin-input" placeholder="Rola (np. Fotograf modelkowy)" value={role} onChange={e=>onRoleChange(e.target.value)} />
+        <div style={{ borderTop:'1px solid #222', paddingTop:10 }}>
+          <div style={{ color:'#FBB724', fontSize:11, marginBottom:8, textTransform:'uppercase', letterSpacing:'.06em' }}>🔑 Dane logowania</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <input className="admin-input" placeholder="Login (np. tomasz.babinek) *" value={login} onChange={e=>onLoginChange(e.target.value.toLowerCase())} autoCapitalize="none" autoCorrect="off" />
+            <input className="admin-input" type="password" placeholder="Hasło *" value={password} onChange={e=>onPasswordChange(e.target.value)} />
+          </div>
+        </div>
         <div>
           <div style={{ color:'#666', fontSize:12, marginBottom:8 }}>Kolor awatara</div>
           <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
@@ -244,7 +251,7 @@ function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, sel
           </div>
         </div>
         <div style={{ display:'flex', gap:8, marginTop:4 }}>
-          <button className="btn-primary" onClick={onSave} disabled={!name.trim()}>{saveLabel}</button>
+          <button className="btn-primary" onClick={onSave} disabled={!name.trim() || !login.trim() || !password.trim()}>{saveLabel}</button>
           <button className="btn-ghost" onClick={onCancel} style={{ flexShrink:0 }}>Anuluj</button>
         </div>
       </div>
@@ -258,29 +265,35 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
   const [editingUser, setEditingUser] = useState(null);
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
+  const [login, setLogin] = useState('');
+  const [password, setPassword] = useState('');
   const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
 
   const initials = name.trim().split(' ').filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'??';
 
+  const resetForm = () => { setName(''); setRole(''); setLogin(''); setPassword(''); setSelectedColor(PRESET_COLORS[0]); };
+
   const handleAdd = () => {
-    if (!name.trim()) return;
-    onSaveUsers([...users, { id:'u'+Date.now(), name:name.trim(), role:role.trim()||'Fotograf', initials, color:selectedColor }]);
-    setName(''); setRole(''); setSelectedColor(PRESET_COLORS[0]); setShowAddForm(false);
+    if (!name.trim() || !login.trim() || !password.trim()) return;
+    onSaveUsers([...users, { id:'u'+Date.now(), name:name.trim(), role:role.trim()||'Fotograf', initials, color:selectedColor, login:login.trim(), password }]);
+    resetForm(); setShowAddForm(false);
   };
 
   const handleEditStart = (user) => {
     setEditingUser(user);
     setName(user.name);
     setRole(user.role);
+    setLogin(user.login||'');
+    setPassword(user.password||'');
     setSelectedColor(user.color);
     setShowAddForm(false);
   };
 
   const handleEditSave = () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !login.trim() || !password.trim()) return;
     const newInitials = name.trim().split(' ').filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'??';
-    onUpdateUser({ ...editingUser, name:name.trim(), role:role.trim()||'Fotograf', initials:newInitials, color:selectedColor });
-    setEditingUser(null); setName(''); setRole(''); setSelectedColor(PRESET_COLORS[0]);
+    onUpdateUser({ ...editingUser, name:name.trim(), role:role.trim()||'Fotograf', initials:newInitials, color:selectedColor, login:login.trim(), password });
+    setEditingUser(null); resetForm();
   };
 
   const handleDelete = (userId) => {
@@ -298,7 +311,7 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
       </div>
 
       {showAddForm && !editingUser && (
-        <UserEditFormInline title="Nowy użytkownik" name={name} onNameChange={setName} role={role} onRoleChange={setRole} selectedColor={selectedColor} onColorChange={setSelectedColor} initials={initials} onSave={handleAdd} onCancel={()=>setShowAddForm(false)} saveLabel="Dodaj użytkownika" />
+        <UserEditFormInline title="Nowy użytkownik" name={name} onNameChange={setName} role={role} onRoleChange={setRole} login={login} onLoginChange={setLogin} password={password} onPasswordChange={setPassword} selectedColor={selectedColor} onColorChange={setSelectedColor} initials={initials} onSave={handleAdd} onCancel={()=>{ setShowAddForm(false); resetForm(); }} saveLabel="Dodaj użytkownika" />
       )}
 
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -309,6 +322,8 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ color:'#eee', fontWeight:600, fontSize:14 }}>{u.name}</div>
                 <div style={{ color:'#888', fontSize:12, marginTop:2 }}>{u.role}</div>
+                {u.login && <div style={{ color:'#555', fontSize:11, fontFamily:'DM Mono,monospace', marginTop:2 }}>@{u.login}</div>}
+                {!u.login && <div style={{ color:'#F87171', fontSize:11, marginTop:2 }}>⚠️ Brak loginu</div>}
               </div>
               <div style={{ display:'flex', gap:6 }}>
                 <button className="btn-edit" onClick={()=>handleEditStart(u)}>✏️ Edytuj</button>
@@ -317,7 +332,7 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
             </div>
             {editingUser?.id===u.id && (
               <div style={{ marginTop:4 }}>
-                <UserEditFormInline title={`Edytuj: ${u.name}`} name={name} onNameChange={setName} role={role} onRoleChange={setRole} selectedColor={selectedColor} onColorChange={setSelectedColor} initials={initials} onSave={handleEditSave} onCancel={()=>{ setEditingUser(null); setName(''); setRole(''); }} saveLabel="💾 Zapisz zmiany" />
+                <UserEditFormInline title={`Edytuj: ${u.name}`} name={name} onNameChange={setName} role={role} onRoleChange={setRole} login={login} onLoginChange={setLogin} password={password} onPasswordChange={setPassword} selectedColor={selectedColor} onColorChange={setSelectedColor} initials={initials} onSave={handleEditSave} onCancel={()=>{ setEditingUser(null); resetForm(); }} saveLabel="💾 Zapisz zmiany" />
               </div>
             )}
           </div>
@@ -524,31 +539,73 @@ function AdminView({ users, equipment, onSaveUsers, onSaveEquipment, onAssign, o
   );
 }
 
-function LoginView({ users, onLogin, onReset, onPrintCodes, onAdmin }) {
+function LoginView({ onLoginWithCredentials, onAdmin }) {
+  const [login, setLogin] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!login.trim() || !password.trim()) return;
+    setLoading(true);
+    setError('');
+    const ok = await onLoginWithCredentials(login.trim(), password);
+    if (!ok) {
+      setError('Nieprawidłowy login lub hasło');
+      setPassword('');
+    }
+    setLoading(false);
+  };
+
   return (
-    <div className="fade-in" style={{ padding:'0 20px 40px', maxWidth:440, margin:'0 auto' }}>
-      <div style={{ textAlign:'center', padding:'40px 0 28px' }}>
-        <div style={{ fontSize:42, marginBottom:10 }}>📷</div>
+    <div className="fade-in" style={{ padding:'0 20px 40px', maxWidth:400, margin:'0 auto' }}>
+      <div style={{ textAlign:'center', padding:'50px 0 36px' }}>
+        <div style={{ fontSize:48, marginBottom:12 }}>📷</div>
         <div style={{ color:'#fff', fontWeight:800, fontSize:26 }}>Studio Inventory</div>
-        <div style={{ color:'#888', fontSize:13, marginTop:6 }}>Wybierz kto to Ty</div>
+        <div style={{ color:'#888', fontSize:13, marginTop:6 }}>Zaloguj się do swojego konta</div>
       </div>
-      <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:24 }}>
-        {users.length===0 && <div style={{ color:'#666', textAlign:'center', padding:30, fontSize:14 }}>Brak użytkowników — dodaj przez Panel Admina</div>}
-        {users.map(u => (
-          <div key={u.id} className="card" onClick={()=>onLogin(u)} style={{ padding:'14px 16px', display:'flex', alignItems:'center', gap:12, cursor:'pointer' }}>
-            <Avatar user={u} size={44} />
-            <div style={{ flex:1 }}>
-              <div style={{ color:'#eee', fontWeight:600, fontSize:15 }}>{u.name}</div>
-              <div style={{ color:'#888', fontSize:13, marginTop:2 }}>{u.role}</div>
-            </div>
-            <div style={{ color:'#555' }}>→</div>
+
+      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+        <div>
+          <div style={{ color:'#888', fontSize:12, marginBottom:6 }}>Login</div>
+          <input
+            className="admin-input"
+            type="text"
+            placeholder="Twój login"
+            value={login}
+            onChange={e => { setLogin(e.target.value); setError(''); }}
+            onKeyDown={e => e.key==='Enter' && handleSubmit()}
+            style={{ fontSize:16, padding:'14px 16px' }}
+            autoCapitalize="none"
+            autoCorrect="off"
+          />
+        </div>
+        <div>
+          <div style={{ color:'#888', fontSize:12, marginBottom:6 }}>Hasło</div>
+          <input
+            className="admin-input"
+            type="password"
+            placeholder="Twoje hasło"
+            value={password}
+            onChange={e => { setPassword(e.target.value); setError(''); }}
+            onKeyDown={e => e.key==='Enter' && handleSubmit()}
+            style={{ fontSize:16, padding:'14px 16px' }}
+          />
+        </div>
+
+        {error && (
+          <div className="slide-up" style={{ color:'#F87171', fontSize:13, padding:'10px 14px', background:'#F8717111', borderRadius:8, border:'1px solid #F8717133' }}>
+            ⚠️ {error}
           </div>
-        ))}
+        )}
+
+        <button className="btn-primary" onClick={handleSubmit} disabled={!login.trim() || !password.trim() || loading} style={{ marginTop:4 }}>
+          {loading ? 'Logowanie...' : 'Zaloguj się →'}
+        </button>
       </div>
-      <div style={{ display:'flex', gap:8, justifyContent:'center', flexWrap:'wrap' }}>
-        <button className="btn-ghost" onClick={onAdmin} style={{ fontSize:11 }}>🔐 Admin</button>
-        <button className="btn-ghost" onClick={onPrintCodes} style={{ fontSize:11 }}>🖨️ Drukuj kody QR</button>
-        <button className="btn-ghost" onClick={onReset} style={{ fontSize:11 }}>🔄 Resetuj dane</button>
+
+      <div style={{ marginTop:32, textAlign:'center' }}>
+        <button className="btn-ghost" onClick={onAdmin} style={{ fontSize:12 }}>🔐 Panel Admina</button>
       </div>
     </div>
   );
@@ -938,7 +995,7 @@ export default function App() {
 
   const handleUpdateUser = async (updatedUser) => {
     setUsers(prev => prev.map(u => u.id===updatedUser.id ? updatedUser : u));
-    await supabase.from('users').update({ name:updatedUser.name, role:updatedUser.role, initials:updatedUser.initials, color:updatedUser.color }).eq('id', updatedUser.id);
+    await supabase.from('users').update({ name:updatedUser.name, role:updatedUser.role, initials:updatedUser.initials, color:updatedUser.color, login:updatedUser.login, password:updatedUser.password }).eq('id', updatedUser.id);
   };
 
   const handleSaveEquipment = async (newEquipment) => {
@@ -975,6 +1032,12 @@ export default function App() {
     setEquipment([]); setHistory([]); setUsers([]);
   };
 
+  const handleLoginWithCredentials = async (login, password) => {
+    const user = users.find(u => u.login === login && u.password === password);
+    if (user) { setCurrentUser(user); setView('home'); return true; }
+    return false;
+  };
+
   const handleLogin = (user) => { setCurrentUser(user); setView('home'); };
   const handleLogout = () => { setCurrentUser(null); setView('login'); };
   const handleAction = (action) => {
@@ -1006,7 +1069,7 @@ export default function App() {
   return (
     <div style={{ background:'#0A0A0A', minHeight:'100vh', color:'#fff', fontFamily:'Barlow,sans-serif' }}>
       <style>{STYLES}</style>
-      {view==='login' && <LoginView users={users} onLogin={handleLogin} onReset={handleReset} onPrintCodes={()=>setView('print')} onAdmin={()=>setView('admin-login')} />}
+      {view==='login' && <LoginView onLoginWithCredentials={handleLoginWithCredentials} onAdmin={()=>setView('admin-login')} />}
       {view==='admin-login' && <AdminLoginView adminPassword={adminPassword} onLogin={()=>setView('admin')} onBack={()=>setView('login')} />}
       {view==='admin' && <AdminView users={users} equipment={equipment} onSaveUsers={handleSaveUsers} onSaveEquipment={handleSaveEquipment} onAssign={handleAssign} onUpdateUser={handleUpdateUser} onUpdateEquipment={handleUpdateEquipment} onBack={()=>setView('login')} />}
       {view==='home' && currentUser && <HomeView user={currentUser} equipment={equipment} history={history} onAction={handleAction} onLogout={handleLogout} onAssign={handleAssign} />}
