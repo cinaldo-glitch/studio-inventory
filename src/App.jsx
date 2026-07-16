@@ -223,7 +223,7 @@ function ImportPanel({ equipment, onSaveEquipment, onClose }) {
 }
 
 // ── Formularz edycji użytkownika — poza komponentem (fix utraty fokusa) ────
-function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, login, onLoginChange, password, onPasswordChange, selectedColor, onColorChange, initials, onSave, onCancel, saveLabel }) {
+function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, login, onLoginChange, password, onPasswordChange, selectedColor, onColorChange, initials, isAdmin, onIsAdminChange, onSave, onCancel, saveLabel }) {
   return (
     <div className="card slide-up" style={{ padding:16, marginBottom:14, border:'1px solid #FBB72433' }}>
       <div style={{ color:'#888', fontSize:11, marginBottom:12, textTransform:'uppercase', letterSpacing:'.08em' }}>{title}</div>
@@ -242,6 +242,15 @@ function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, log
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             <input className="admin-input" placeholder="Login (np. tomasz.babinek) *" value={login} onChange={e=>onLoginChange(e.target.value.toLowerCase())} autoCapitalize="none" autoCorrect="off" />
             <input className="admin-input" type="text" placeholder="Hasło *" value={password} onChange={e=>onPasswordChange(e.target.value)} autoComplete="new-password" />
+          </div>
+        </div>
+        <div onClick={()=>onIsAdminChange(!isAdmin)} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 14px', background:'#1a1a1a', borderRadius:8, cursor:'pointer', border:`1px solid ${isAdmin?'#22C55E33':'#2a2a2a'}` }}>
+          <div>
+            <div style={{ color:'#eee', fontSize:13, fontWeight:600 }}>Uprawnienia administratora</div>
+            <div style={{ color:'#666', fontSize:12, marginTop:2 }}>Dostęp do Panelu Admina po zalogowaniu</div>
+          </div>
+          <div style={{ width:48, height:26, borderRadius:13, background:isAdmin?'#22C55E':'#333', cursor:'pointer', position:'relative', transition:'background .2s', flexShrink:0, marginLeft:12 }}>
+            <div style={{ position:'absolute', top:3, left:isAdmin?23:3, width:20, height:20, borderRadius:10, background:'#fff', transition:'left .2s', boxShadow:'0 1px 3px rgba(0,0,0,0.3)' }} />
           </div>
         </div>
         <div>
@@ -267,15 +276,16 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
   const [role, setRole] = useState('');
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
 
   const initials = name.trim().split(' ').filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'??';
 
-  const resetForm = () => { setName(''); setRole(''); setLogin(''); setPassword(''); setSelectedColor(PRESET_COLORS[0]); };
+  const resetForm = () => { setName(''); setRole(''); setLogin(''); setPassword(''); setIsAdmin(false); setSelectedColor(PRESET_COLORS[0]); };
 
   const handleAdd = () => {
     if (!name.trim() || !login.trim() || !password.trim()) return;
-    onSaveUsers([...users, { id:'u'+Date.now(), name:name.trim(), role:role.trim()||'Fotograf', initials, color:selectedColor, login:login.trim(), password }]);
+    onSaveUsers([...users, { id:'u'+Date.now(), name:name.trim(), role:role.trim()||'Fotograf', initials, color:selectedColor, login:login.trim(), password, is_admin:isAdmin }]);
     resetForm(); setShowAddForm(false);
   };
 
@@ -285,6 +295,7 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
     setRole(user.role);
     setLogin(user.login||'');
     setPassword(user.password||'');
+    setIsAdmin(user.is_admin||false);
     setSelectedColor(user.color);
     setShowAddForm(false);
   };
@@ -292,7 +303,7 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
   const handleEditSave = () => {
     if (!name.trim() || !login.trim() || !password.trim()) return;
     const newInitials = name.trim().split(' ').filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'??';
-    onUpdateUser({ ...editingUser, name:name.trim(), role:role.trim()||'Fotograf', initials:newInitials, color:selectedColor, login:login.trim(), password });
+    onUpdateUser({ ...editingUser, name:name.trim(), role:role.trim()||'Fotograf', initials:newInitials, color:selectedColor, login:login.trim(), password, is_admin:isAdmin });
     setEditingUser(null); resetForm();
   };
 
@@ -311,7 +322,7 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
       </div>
 
       {showAddForm && !editingUser && (
-        <UserEditFormInline title="Nowy użytkownik" name={name} onNameChange={setName} role={role} onRoleChange={setRole} login={login} onLoginChange={setLogin} password={password} onPasswordChange={setPassword} selectedColor={selectedColor} onColorChange={setSelectedColor} initials={initials} onSave={handleAdd} onCancel={()=>{ setShowAddForm(false); resetForm(); }} saveLabel="Dodaj użytkownika" />
+        <UserEditFormInline title="Nowy użytkownik" name={name} onNameChange={setName} role={role} onRoleChange={setRole} login={login} onLoginChange={setLogin} password={password} onPasswordChange={setPassword} isAdmin={isAdmin} onIsAdminChange={setIsAdmin} selectedColor={selectedColor} onColorChange={setSelectedColor} initials={initials} onSave={handleAdd} onCancel={()=>{ setShowAddForm(false); resetForm(); }} saveLabel="Dodaj użytkownika" />
       )}
 
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -322,8 +333,11 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ color:'#eee', fontWeight:600, fontSize:14 }}>{u.name}</div>
                 <div style={{ color:'#888', fontSize:12, marginTop:2 }}>{u.role}</div>
-                {u.login && <div style={{ color:'#555', fontSize:11, fontFamily:'DM Mono,monospace', marginTop:2 }}>@{u.login}</div>}
-                {!u.login && <div style={{ color:'#F87171', fontSize:11, marginTop:2 }}>⚠️ Brak loginu</div>}
+                <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
+                  {u.login && <div style={{ color:'#555', fontSize:11, fontFamily:'DM Mono,monospace' }}>@{u.login}</div>}
+                  {!u.login && <div style={{ color:'#F87171', fontSize:11 }}>⚠️ Brak loginu</div>}
+                  {u.is_admin && <div style={{ background:'#22C55E22', color:'#22C55E', fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:4, border:'1px solid #22C55E44' }}>ADMIN</div>}
+                </div>
               </div>
               <div style={{ display:'flex', gap:6 }}>
                 <button className="btn-edit" onClick={()=>handleEditStart(u)}>✏️ Edytuj</button>
@@ -332,7 +346,7 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
             </div>
             {editingUser?.id===u.id && (
               <div style={{ marginTop:4 }}>
-                <UserEditFormInline title={`Edytuj: ${u.name}`} name={name} onNameChange={setName} role={role} onRoleChange={setRole} login={login} onLoginChange={setLogin} password={password} onPasswordChange={setPassword} selectedColor={selectedColor} onColorChange={setSelectedColor} initials={initials} onSave={handleEditSave} onCancel={()=>{ setEditingUser(null); resetForm(); }} saveLabel="💾 Zapisz zmiany" />
+                <UserEditFormInline title={`Edytuj: ${u.name}`} name={name} onNameChange={setName} role={role} onRoleChange={setRole} login={login} onLoginChange={setLogin} password={password} onPasswordChange={setPassword} isAdmin={isAdmin} onIsAdminChange={setIsAdmin} selectedColor={selectedColor} onColorChange={setSelectedColor} initials={initials} onSave={handleEditSave} onCancel={()=>{ setEditingUser(null); resetForm(); }} saveLabel="💾 Zapisz zmiany" />
               </div>
             )}
           </div>
@@ -695,6 +709,7 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
           ...(myItems.length>0?[{action:'return', icon:'📥', label:'Zwróć do magazynu', sub:'Twój sprzęt wraca do magazynu'}]:[]),
           {action:'catalog', icon:'🔍', label:'Katalog sprzętu', sub:'Zobacz gdzie jest jaki sprzęt'},
           {action:'history', icon:'📋', label:'Historia operacji', sub:`${history.length} ${history.length===1?'operacja':'operacji'}`},
+          ...(user.is_admin?[{action:'admin', icon:'🔧', label:'Panel Admina', sub:'Zarządzaj sprzętem i użytkownikami'}]:[]),
         ].map(({action,icon,label,sub}) => (
           <button key={action} className="action-tile" onClick={()=>onAction(action)}>
             <div style={{ display:'flex', alignItems:'center', gap:14 }}>
@@ -997,7 +1012,7 @@ export default function App() {
 
   const handleUpdateUser = async (updatedUser) => {
     setUsers(prev => prev.map(u => u.id===updatedUser.id ? updatedUser : u));
-    await supabase.from('users').update({ name:updatedUser.name, role:updatedUser.role, initials:updatedUser.initials, color:updatedUser.color, login:updatedUser.login, password:updatedUser.password }).eq('id', updatedUser.id);
+    await supabase.from('users').update({ name:updatedUser.name, role:updatedUser.role, initials:updatedUser.initials, color:updatedUser.color, login:updatedUser.login, password:updatedUser.password, is_admin:updatedUser.is_admin }).eq('id', updatedUser.id);
   };
 
   const handleSaveEquipment = async (newEquipment) => {
@@ -1046,6 +1061,7 @@ export default function App() {
     if (action==='checkout'||action==='return') { setScanMode(action); setView('scan'); }
     else setView(action);
   };
+  // admin view also accessible from HomeView for admin users (no password needed)
 
   if (loading) return (
     <div style={{ background:'#0A0A0A', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16 }}>
