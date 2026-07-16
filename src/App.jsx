@@ -222,6 +222,36 @@ function ImportPanel({ equipment, onSaveEquipment, onClose }) {
   );
 }
 
+// ── Formularz edycji użytkownika — poza komponentem (fix utraty fokusa) ────
+function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, selectedColor, onColorChange, initials, onSave, onCancel, saveLabel }) {
+  return (
+    <div className="card slide-up" style={{ padding:16, marginBottom:14, border:'1px solid #FBB72433' }}>
+      <div style={{ color:'#888', fontSize:11, marginBottom:12, textTransform:'uppercase', letterSpacing:'.08em' }}>{title}</div>
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14, padding:'10px 12px', background:'#1a1a1a', borderRadius:8 }}>
+        <div style={{ width:40, height:40, borderRadius:20, background:selectedColor+'1A', border:`1.5px solid ${selectedColor}44`, display:'flex', alignItems:'center', justifyContent:'center', color:selectedColor, fontFamily:'DM Mono,monospace', fontWeight:500, fontSize:14 }}>{initials}</div>
+        <div>
+          <div style={{ color:'#eee', fontWeight:600, fontSize:14 }}>{name||'Imię i nazwisko'}</div>
+          <div style={{ color:'#666', fontSize:12 }}>{role||'Rola'}</div>
+        </div>
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        <input className="admin-input" placeholder="Imię i nazwisko *" value={name} onChange={e=>onNameChange(e.target.value)} />
+        <input className="admin-input" placeholder="Rola (np. Fotograf modelkowy)" value={role} onChange={e=>onRoleChange(e.target.value)} />
+        <div>
+          <div style={{ color:'#666', fontSize:12, marginBottom:8 }}>Kolor awatara</div>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            {PRESET_COLORS.map(c => <div key={c} onClick={()=>onColorChange(c)} style={{ width:32, height:32, borderRadius:16, background:c, cursor:'pointer', border:selectedColor===c?'3px solid #fff':'3px solid transparent', transition:'border-color .15s' }} />)}
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:8, marginTop:4 }}>
+          <button className="btn-primary" onClick={onSave} disabled={!name.trim()}>{saveLabel}</button>
+          <button className="btn-ghost" onClick={onCancel} style={{ flexShrink:0 }}>Anuluj</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── USERS TAB z edycją ──────────────────────────────────────────────────────
 function UsersTab({ users, onSaveUsers, onUpdateUser }) {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -258,34 +288,6 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
     onSaveUsers(users.filter(u=>u.id!==userId));
   };
 
-  const ColorPicker = ({ value, onChange }) => (
-    <div>
-      <div style={{ color:'#666', fontSize:12, marginBottom:8 }}>Kolor awatara</div>
-      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-        {PRESET_COLORS.map(c => <div key={c} onClick={()=>onChange(c)} style={{ width:32, height:32, borderRadius:16, background:c, cursor:'pointer', border:value===c?'3px solid #fff':'3px solid transparent', transition:'border-color .15s' }} />)}
-      </div>
-    </div>
-  );
-
-  const UserForm = ({ title, onSave, onCancel, saveLabel }) => (
-    <div className="card slide-up" style={{ padding:16, marginBottom:14, border:'1px solid #FBB72433' }}>
-      <div style={{ color:'#888', fontSize:11, marginBottom:12, textTransform:'uppercase', letterSpacing:'.08em' }}>{title}</div>
-      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14, padding:'10px 12px', background:'#1a1a1a', borderRadius:8 }}>
-        <div style={{ width:40, height:40, borderRadius:20, background:selectedColor+'1A', border:`1.5px solid ${selectedColor}44`, display:'flex', alignItems:'center', justifyContent:'center', color:selectedColor, fontFamily:'DM Mono,monospace', fontWeight:500, fontSize:14 }}>{initials}</div>
-        <div><div style={{ color:'#eee', fontWeight:600, fontSize:14 }}>{name||'Imię i nazwisko'}</div><div style={{ color:'#666', fontSize:12 }}>{role||'Rola'}</div></div>
-      </div>
-      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-        <input className="admin-input" placeholder="Imię i nazwisko *" value={name} onChange={e=>setName(e.target.value)} />
-        <input className="admin-input" placeholder="Rola (np. Fotograf modelkowy)" value={role} onChange={e=>setRole(e.target.value)} />
-        <ColorPicker value={selectedColor} onChange={setSelectedColor} />
-        <div style={{ display:'flex', gap:8, marginTop:4 }}>
-          <button className="btn-primary" onClick={onSave} disabled={!name.trim()}>{saveLabel}</button>
-          <button className="btn-ghost" onClick={onCancel} style={{ flexShrink:0 }}>Anuluj</button>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
@@ -296,7 +298,7 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
       </div>
 
       {showAddForm && !editingUser && (
-        <UserForm title="Nowy użytkownik" onSave={handleAdd} onCancel={()=>setShowAddForm(false)} saveLabel="Dodaj użytkownika" />
+        <UserEditFormInline title="Nowy użytkownik" name={name} onNameChange={setName} role={role} onRoleChange={setRole} selectedColor={selectedColor} onColorChange={setSelectedColor} initials={initials} onSave={handleAdd} onCancel={()=>setShowAddForm(false)} saveLabel="Dodaj użytkownika" />
       )}
 
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -315,7 +317,7 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
             </div>
             {editingUser?.id===u.id && (
               <div style={{ marginTop:4 }}>
-                <UserForm title={`Edytuj: ${u.name}`} onSave={handleEditSave} onCancel={()=>{ setEditingUser(null); setName(''); setRole(''); }} saveLabel="💾 Zapisz zmiany" />
+                <UserEditFormInline title={`Edytuj: ${u.name}`} name={name} onNameChange={setName} role={role} onRoleChange={setRole} selectedColor={selectedColor} onColorChange={setSelectedColor} initials={initials} onSave={handleEditSave} onCancel={()=>{ setEditingUser(null); setName(''); setRole(''); }} saveLabel="💾 Zapisz zmiany" />
               </div>
             )}
           </div>
