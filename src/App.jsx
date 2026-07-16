@@ -26,8 +26,10 @@ const STYLES = `
   .btn-scan:hover { background: #FBB72422; }
   .btn-ghost { background: transparent; color: #888; font: 600 13px/1 'Barlow',sans-serif; border: 1px solid #252525; border-radius: 8px; padding: 10px 16px; cursor: pointer; transition: all .15s ease; }
   .btn-ghost:hover { border-color: #3a3a3a; color: #ccc; }
-  .btn-danger { background: transparent; color: #F87171; font: 600 13px/1 'Barlow',sans-serif; border: 1px solid #3a2020; border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: all .15s ease; flex-shrink: 0; }
+  .btn-danger { background: transparent; color: #F87171; font: 600 12px/1 'Barlow',sans-serif; border: 1px solid #3a2020; border-radius: 8px; padding: 7px 10px; cursor: pointer; transition: all .15s ease; flex-shrink: 0; }
   .btn-danger:hover { background: #3a2020; border-color: #F87171; }
+  .btn-edit { background: transparent; color: #888; font: 600 12px/1 'Barlow',sans-serif; border: 1px solid #2a2a2a; border-radius: 8px; padding: 7px 10px; cursor: pointer; transition: all .15s ease; flex-shrink: 0; }
+  .btn-edit:hover { border-color: #FBB724; color: #FBB724; }
   .card { background: #141414; border: 1px solid #202020; border-radius: 12px; }
   .scannable-item { background: #141414; border: 1.5px solid #1E1E1E; border-radius: 10px; padding: 12px 14px; cursor: pointer; transition: all .12s ease; display: flex; align-items: center; gap: 12px; user-select: none; }
   .scannable-item:hover { border-color: #333; }
@@ -51,8 +53,6 @@ const STYLES = `
 const DEFAULT_USERS = [
   { id: 'u1', name: 'Anna Kowalska',    role: 'Fotograf modelkowy',  initials: 'AK', color: '#FBB724' },
   { id: 'u2', name: 'Marek Nowak',      role: 'Fotograf produktowy', initials: 'MN', color: '#34D399' },
-  { id: 'u3', name: 'Zofia Wiśniewska', role: 'Zespół produkcyjny',  initials: 'ZW', color: '#818CF8' },
-  { id: 'u4', name: 'Piotr Zając',      role: 'Zespół zewnętrzny',   initials: 'PZ', color: '#FB7185' },
 ];
 
 const CATEGORIES = {
@@ -194,37 +194,23 @@ function ImportPanel({ equipment, onSaveEquipment, onClose }) {
     <div className="card slide-up" style={{ padding:20, marginBottom:14, textAlign:'center' }}>
       <div style={{ fontSize:36, marginBottom:8 }}>✅</div>
       <div style={{ color:'#22C55E', fontWeight:700, fontSize:16, marginBottom:4 }}>Zaimportowano {toImport.length} elementów!</div>
-      <div style={{ color:'#888', fontSize:13, marginBottom:16 }}>Wszystkie trafiły do magazynu.</div>
-      <button className="btn-primary" onClick={onClose}>Gotowe</button>
+      <button className="btn-primary" onClick={onClose} style={{ marginTop:8 }}>Gotowe</button>
     </div>
   );
   return (
     <div className="card slide-up" style={{ padding:16, marginBottom:14 }}>
       <div style={{ color:'#888', fontSize:11, marginBottom:10, textTransform:'uppercase', letterSpacing:'.08em' }}>📥 Import z Excela</div>
       <div style={{ background:'#1a1a1a', borderRadius:8, padding:12, marginBottom:12, border:'1px solid #2a2a2a', fontSize:13, color:'#aaa', lineHeight:1.6 }}>
-        <strong style={{ color:'#FBB724' }}>Jak to zrobić:</strong><br/>
-        1. Otwórz Excel z bazą sprzętu<br/>
-        2. Zaznacz kolumny <strong style={{ color:'#fff' }}>KOD</strong>, <strong style={{ color:'#fff' }}>NAZWA</strong>, <strong style={{ color:'#fff' }}>KATEGORIA</strong><br/>
-        3. Cmd+C → kliknij poniżej → Cmd+V
+        <strong style={{ color:'#FBB724' }}>Jak:</strong> Zaznacz w Excelu kolumny <strong style={{ color:'#fff' }}>KOD</strong>, <strong style={{ color:'#fff' }}>NAZWA</strong>, <strong style={{ color:'#fff' }}>KATEGORIA</strong> → Cmd+C → wklej poniżej
       </div>
       <textarea value={raw} onChange={e => { setRaw(e.target.value); parseText(e.target.value); }}
         placeholder={"16000005134\tGenerator Broncolor Scoro\tGENE\n..."}
-        style={{ width:'100%', minHeight:130, background:'#111', border:'2px solid #FBB72444', borderRadius:10, padding:12, color:'#FBB724', fontFamily:'DM Mono,monospace', fontSize:12, outline:'none', resize:'vertical', lineHeight:1.5 }} />
+        style={{ width:'100%', minHeight:120, background:'#111', border:'2px solid #FBB72444', borderRadius:10, padding:12, color:'#FBB724', fontFamily:'DM Mono,monospace', fontSize:12, outline:'none', resize:'vertical', lineHeight:1.5 }} />
       {parsed.length > 0 && (
         <div className="slide-up" style={{ marginTop:12 }}>
           <div style={{ display:'flex', gap:8, marginBottom:10, flexWrap:'wrap' }}>
             <div style={{ background:'#1a2a1a', border:'1px solid #22C55E33', borderRadius:8, padding:'6px 12px', color:'#22C55E', fontSize:13, fontWeight:600 }}>✓ {toImport.length} do importu</div>
             {dupCount > 0 && <div style={{ background:'#2a2010', border:'1px solid #FBB72433', borderRadius:8, padding:'6px 12px', color:'#FBB724', fontSize:13 }}>⚠ {dupCount} duplikatów</div>}
-          </div>
-          <div style={{ background:'#111', borderRadius:8, padding:'6px 10px', marginBottom:12, maxHeight:200, overflowY:'auto' }}>
-            {parsed.slice(0,30).map((item,i) => (
-              <div key={i} style={{ display:'flex', gap:8, fontSize:12, padding:'4px 0', borderBottom:'1px solid #1a1a1a', color: !item.valid?'#F87171':item.isDup?'#FBB724':'#aaa' }}>
-                <span style={{ fontFamily:'DM Mono,monospace', flexShrink:0, minWidth:100 }}>{item.code||'—'}</span>
-                <span style={{ flex:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name||'—'}</span>
-                <span style={{ color:'#555', flexShrink:0 }}>{item.cat}</span>
-                {item.isDup && <span style={{ color:'#FBB724', flexShrink:0 }}>duplikat</span>}
-              </div>
-            ))}
           </div>
           <div style={{ display:'flex', gap:8 }}>
             <button className="btn-primary" onClick={handleImport} disabled={toImport.length===0}>✓ Importuj {toImport.length} →</button>
@@ -236,52 +222,102 @@ function ImportPanel({ equipment, onSaveEquipment, onClose }) {
   );
 }
 
-function UsersTab({ users, onSaveUsers }) {
-  const [showForm, setShowForm] = useState(false);
+// ── USERS TAB z edycją ──────────────────────────────────────────────────────
+function UsersTab({ users, onSaveUsers, onUpdateUser }) {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
+
   const initials = name.trim().split(' ').filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'??';
+
   const handleAdd = () => {
     if (!name.trim()) return;
     onSaveUsers([...users, { id:'u'+Date.now(), name:name.trim(), role:role.trim()||'Fotograf', initials, color:selectedColor }]);
-    setName(''); setRole(''); setSelectedColor(PRESET_COLORS[0]); setShowForm(false);
+    setName(''); setRole(''); setSelectedColor(PRESET_COLORS[0]); setShowAddForm(false);
   };
-  const handleDelete = (userId) => { if (!window.confirm('Usunąć tego użytkownika?')) return; onSaveUsers(users.filter(u=>u.id!==userId)); };
+
+  const handleEditStart = (user) => {
+    setEditingUser(user);
+    setName(user.name);
+    setRole(user.role);
+    setSelectedColor(user.color);
+    setShowAddForm(false);
+  };
+
+  const handleEditSave = () => {
+    if (!name.trim()) return;
+    const newInitials = name.trim().split(' ').filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'??';
+    onUpdateUser({ ...editingUser, name:name.trim(), role:role.trim()||'Fotograf', initials:newInitials, color:selectedColor });
+    setEditingUser(null); setName(''); setRole(''); setSelectedColor(PRESET_COLORS[0]);
+  };
+
+  const handleDelete = (userId) => {
+    if (!window.confirm('Usunąć tego użytkownika?')) return;
+    onSaveUsers(users.filter(u=>u.id!==userId));
+  };
+
+  const ColorPicker = ({ value, onChange }) => (
+    <div>
+      <div style={{ color:'#666', fontSize:12, marginBottom:8 }}>Kolor awatara</div>
+      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+        {PRESET_COLORS.map(c => <div key={c} onClick={()=>onChange(c)} style={{ width:32, height:32, borderRadius:16, background:c, cursor:'pointer', border:value===c?'3px solid #fff':'3px solid transparent', transition:'border-color .15s' }} />)}
+      </div>
+    </div>
+  );
+
+  const UserForm = ({ title, onSave, onCancel, saveLabel }) => (
+    <div className="card slide-up" style={{ padding:16, marginBottom:14, border:'1px solid #FBB72433' }}>
+      <div style={{ color:'#888', fontSize:11, marginBottom:12, textTransform:'uppercase', letterSpacing:'.08em' }}>{title}</div>
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14, padding:'10px 12px', background:'#1a1a1a', borderRadius:8 }}>
+        <div style={{ width:40, height:40, borderRadius:20, background:selectedColor+'1A', border:`1.5px solid ${selectedColor}44`, display:'flex', alignItems:'center', justifyContent:'center', color:selectedColor, fontFamily:'DM Mono,monospace', fontWeight:500, fontSize:14 }}>{initials}</div>
+        <div><div style={{ color:'#eee', fontWeight:600, fontSize:14 }}>{name||'Imię i nazwisko'}</div><div style={{ color:'#666', fontSize:12 }}>{role||'Rola'}</div></div>
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        <input className="admin-input" placeholder="Imię i nazwisko *" value={name} onChange={e=>setName(e.target.value)} />
+        <input className="admin-input" placeholder="Rola (np. Fotograf modelkowy)" value={role} onChange={e=>setRole(e.target.value)} />
+        <ColorPicker value={selectedColor} onChange={setSelectedColor} />
+        <div style={{ display:'flex', gap:8, marginTop:4 }}>
+          <button className="btn-primary" onClick={onSave} disabled={!name.trim()}>{saveLabel}</button>
+          <button className="btn-ghost" onClick={onCancel} style={{ flexShrink:0 }}>Anuluj</button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
         <div style={{ color:'#888', fontSize:13 }}>{users.length} użytkowników</div>
-        <button className="btn-primary" onClick={() => setShowForm(!showForm)} style={{ width:'auto', padding:'8px 16px', fontSize:13 }}>{showForm?'✕ Anuluj':'+ Dodaj użytkownika'}</button>
+        <button className="btn-primary" onClick={()=>{ setShowAddForm(!showAddForm); setEditingUser(null); setName(''); setRole(''); setSelectedColor(PRESET_COLORS[0]); }} style={{ width:'auto', padding:'8px 16px', fontSize:13 }}>
+          {showAddForm?'✕ Anuluj':'+ Dodaj użytkownika'}
+        </button>
       </div>
-      {showForm && (
-        <div className="card slide-up" style={{ padding:16, marginBottom:14 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14, padding:'10px 12px', background:'#1a1a1a', borderRadius:8 }}>
-            <div style={{ width:40, height:40, borderRadius:20, background:selectedColor+'1A', border:`1.5px solid ${selectedColor}44`, display:'flex', alignItems:'center', justifyContent:'center', color:selectedColor, fontFamily:'DM Mono,monospace', fontWeight:500, fontSize:14 }}>{initials}</div>
-            <div><div style={{ color:'#eee', fontWeight:600, fontSize:14 }}>{name||'Imię i nazwisko'}</div><div style={{ color:'#666', fontSize:12 }}>{role||'Rola'}</div></div>
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            <input className="admin-input" placeholder="Imię i nazwisko *" value={name} onChange={e=>setName(e.target.value)} />
-            <input className="admin-input" placeholder="Rola (np. Fotograf modelkowy)" value={role} onChange={e=>setRole(e.target.value)} />
-            <div>
-              <div style={{ color:'#666', fontSize:12, marginBottom:8 }}>Kolor awatara</div>
-              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                {PRESET_COLORS.map(c => <div key={c} onClick={()=>setSelectedColor(c)} style={{ width:32, height:32, borderRadius:16, background:c, cursor:'pointer', border:selectedColor===c?'3px solid #fff':'3px solid transparent', transition:'border-color .15s' }} />)}
-              </div>
-            </div>
-            <button className="btn-primary" onClick={handleAdd} disabled={!name.trim()} style={{ marginTop:4 }}>Dodaj użytkownika</button>
-          </div>
-        </div>
+
+      {showAddForm && !editingUser && (
+        <UserForm title="Nowy użytkownik" onSave={handleAdd} onCancel={()=>setShowAddForm(false)} saveLabel="Dodaj użytkownika" />
       )}
+
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
         {users.map(u => (
-          <div key={u.id} className="card" style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:12 }}>
-            <Avatar user={u} size={40} />
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ color:'#eee', fontWeight:600, fontSize:14 }}>{u.name}</div>
-              <div style={{ color:'#888', fontSize:12, marginTop:2 }}>{u.role}</div>
+          <div key={u.id}>
+            <div className="card" style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:12 }}>
+              <Avatar user={editingUser?.id===u.id ? {...u, name:name||u.name, initials, color:selectedColor} : u} size={40} />
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ color:'#eee', fontWeight:600, fontSize:14 }}>{u.name}</div>
+                <div style={{ color:'#888', fontSize:12, marginTop:2 }}>{u.role}</div>
+              </div>
+              <div style={{ display:'flex', gap:6 }}>
+                <button className="btn-edit" onClick={()=>handleEditStart(u)}>✏️ Edytuj</button>
+                <button className="btn-danger" onClick={()=>handleDelete(u.id)}>Usuń</button>
+              </div>
             </div>
-            <button className="btn-danger" onClick={()=>handleDelete(u.id)}>Usuń</button>
+            {editingUser?.id===u.id && (
+              <div style={{ marginTop:4 }}>
+                <UserForm title={`Edytuj: ${u.name}`} onSave={handleEditSave} onCancel={()=>{ setEditingUser(null); setName(''); setRole(''); }} saveLabel="💾 Zapisz zmiany" />
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -289,12 +325,16 @@ function UsersTab({ users, onSaveUsers }) {
   );
 }
 
-function EquipmentTab({ equipment, users, onSaveEquipment, onAssign }) {
+// ── EQUIPMENT TAB z edycją ──────────────────────────────────────────────────
+function EquipmentTab({ equipment, users, onSaveEquipment, onAssign, onUpdateEquipment }) {
   const [mode, setMode] = useState('list');
   const [search, setSearch] = useState('');
+  const [editingItem, setEditingItem] = useState(null);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [cat, setCat] = useState('LAMP');
+  const [editName, setEditName] = useState('');
+  const [editCat, setEditCat] = useState('LAMP');
 
   const handleAdd = () => {
     const trimCode = code.trim().toUpperCase();
@@ -304,12 +344,26 @@ function EquipmentTab({ equipment, users, onSaveEquipment, onAssign }) {
     setCode(''); setName(''); setCat('LAMP'); setMode('list');
   };
 
+  const handleEditStart = (item) => {
+    setEditingItem(item);
+    setEditName(item.name);
+    setEditCat(item.cat);
+  };
+
+  const handleEditSave = () => {
+    if (!editName.trim()) return;
+    onUpdateEquipment({ ...editingItem, name:editName.trim(), cat:editCat });
+    setEditingItem(null);
+  };
+
   const handleDelete = (itemId) => {
     if (!window.confirm('Usunąć ten element sprzętu?')) return;
     onSaveEquipment(equipment.filter(e => e.id !== itemId));
   };
 
   const filtered = equipment.filter(e => !search || e.name.toLowerCase().includes(search.toLowerCase()) || e.code.toLowerCase().includes(search.toLowerCase()));
+
+  const selectStyle = { background:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:8, padding:'11px 14px', color:'#ddd', fontSize:14, outline:'none', width:'100%' };
 
   return (
     <div>
@@ -331,7 +385,7 @@ function EquipmentTab({ equipment, users, onSaveEquipment, onAssign }) {
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             <input className="admin-input" placeholder="Kod z naklejki *" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} style={{ fontFamily:'DM Mono,monospace', letterSpacing:'.05em' }} />
             <input className="admin-input" placeholder="Nazwa sprzętu *" value={name} onChange={e=>setName(e.target.value)} />
-            <select value={cat} onChange={e=>setCat(e.target.value)} style={{ background:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:8, padding:'11px 14px', color:'#ddd', fontSize:14, outline:'none' }}>
+            <select value={cat} onChange={e=>setCat(e.target.value)} style={selectStyle}>
               {Object.entries(CATEGORIES).map(([key,val]) => <option key={key} value={key}>{val.icon} {val.name}</option>)}
             </select>
             <button className="btn-primary" onClick={handleAdd} disabled={!code.trim()||!name.trim()} style={{ marginTop:4 }}>Dodaj do magazynu</button>
@@ -343,30 +397,42 @@ function EquipmentTab({ equipment, users, onSaveEquipment, onAssign }) {
 
       <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
         {filtered.length===0 && <div style={{ color:'#555', textAlign:'center', padding:40, fontSize:14 }}>{search?'Brak wyników':'Brak sprzętu'}</div>}
-        {filtered.map(item => {
-          const assignedUser = item.assigned_to ? users.find(u=>u.id===item.assigned_to) : null;
-          return (
-            <div key={item.id} className="card" style={{ padding:'10px 13px' }}>
+        {filtered.map(item => (
+          <div key={item.id}>
+            <div className="card" style={{ padding:'10px 13px' }}>
               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                 <span style={{ fontSize:20 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ color:'#ccc', fontSize:13, fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div>
                   <div style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'#666', marginTop:2 }}>{item.code}</div>
                 </div>
-                <button className="btn-danger" onClick={()=>handleDelete(item.id)} style={{ padding:'6px 10px', fontSize:12 }}>Usuń</button>
-              </div>
-              {/* Przypisanie */}
-              <div style={{ marginTop:8, paddingTop:8, borderTop:'1px solid #1a1a1a', display:'flex', alignItems:'center', gap:8 }}>
-                <span style={{ color:'#666', fontSize:12 }}>📌 Przypisany do:</span>
-                <select value={item.assigned_to||''} onChange={e=>onAssign(item.id, e.target.value||null)}
-                  style={{ background:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:6, padding:'4px 8px', color:assignedUser?assignedUser.color:'#888', fontSize:12, outline:'none', flex:1 }}>
-                  <option value="">— Brak przypisania —</option>
-                  {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                </select>
+                <div style={{ display:'flex', gap:6 }}>
+                  <button className="btn-edit" onClick={()=>editingItem?.id===item.id?setEditingItem(null):handleEditStart(item)}>
+                    {editingItem?.id===item.id?'✕':'✏️'}
+                  </button>
+                  <button className="btn-danger" onClick={()=>handleDelete(item.id)} style={{ padding:'6px 10px', fontSize:12 }}>Usuń</button>
+                </div>
               </div>
             </div>
-          );
-        })}
+
+            {editingItem?.id===item.id && (
+              <div className="card slide-up" style={{ padding:14, marginTop:4, border:'1px solid #FBB72433' }}>
+                <div style={{ color:'#888', fontSize:11, marginBottom:10, textTransform:'uppercase', letterSpacing:'.08em' }}>Edytuj sprzęt</div>
+                <div style={{ color:'#555', fontSize:11, marginBottom:10, fontFamily:'DM Mono,monospace' }}>Kod: {item.code} (niezmienialny)</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                  <input className="admin-input" placeholder="Nazwa sprzętu *" value={editName} onChange={e=>setEditName(e.target.value)} />
+                  <select value={editCat} onChange={e=>setEditCat(e.target.value)} style={selectStyle}>
+                    {Object.entries(CATEGORIES).map(([key,val]) => <option key={key} value={key}>{val.icon} {val.name}</option>)}
+                  </select>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <button className="btn-primary" onClick={handleEditSave} disabled={!editName.trim()}>💾 Zapisz</button>
+                    <button className="btn-ghost" onClick={()=>setEditingItem(null)} style={{ flexShrink:0 }}>Anuluj</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -374,7 +440,6 @@ function EquipmentTab({ equipment, users, onSaveEquipment, onAssign }) {
 
 function StatusTab({ users, equipment }) {
   const warehouseItems = equipment.filter(e => e.location==='warehouse' && !e.assigned_to);
-  const assignedItems = equipment.filter(e => e.assigned_to);
   return (
     <div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:18 }}>
@@ -387,7 +452,6 @@ function StatusTab({ users, equipment }) {
           <div style={{ color:'#888', fontSize:12, marginTop:4 }}>U fotografów</div>
         </div>
       </div>
-
       {users.map(user => {
         const userItems = equipment.filter(e => e.location===user.id && !e.assigned_to);
         const userAssigned = equipment.filter(e => e.assigned_to===user.id);
@@ -395,70 +459,47 @@ function StatusTab({ users, equipment }) {
           <div key={user.id} style={{ marginBottom:14 }}>
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
               <Avatar user={user} size={32} />
-              <div style={{ flex:1 }}>
-                <div style={{ color:'#eee', fontWeight:600, fontSize:14 }}>{user.name}</div>
-              </div>
+              <div style={{ flex:1 }}><div style={{ color:'#eee', fontWeight:600, fontSize:14 }}>{user.name}</div></div>
               <div style={{ display:'flex', gap:6 }}>
                 {userAssigned.length>0 && <div style={{ background:'#1a1a2a', border:'1px solid #818CF844', borderRadius:6, padding:'3px 8px', color:'#818CF8', fontSize:11 }}>📌 {userAssigned.length}</div>}
                 {userItems.length>0 && <div style={{ background:'#FBB72422', border:'1px solid #FBB72444', borderRadius:6, padding:'3px 8px', color:'#FBB724', fontSize:11 }}>📤 {userItems.length}</div>}
               </div>
             </div>
-            {userAssigned.length>0 && (
-              <div style={{ paddingLeft:42, marginBottom:6 }}>
-                <div style={{ color:'#818CF8', fontSize:11, marginBottom:4 }}>📌 Sprzęt przypisany na stałe</div>
-                {userAssigned.map(item => (
-                  <div key={item.id} className="card" style={{ padding:'7px 11px', display:'flex', alignItems:'center', gap:8, marginBottom:3, borderColor:'#818CF822' }}>
-                    <span style={{ fontSize:15 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ color:'#bbb', fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div>
-                    </div>
-                    <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#666' }}>{item.code}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {userItems.length>0 && (
-              <div style={{ paddingLeft:42 }}>
-                <div style={{ color:'#FBB724', fontSize:11, marginBottom:4 }}>📤 Wypożyczony sprzęt</div>
-                {userItems.map(item => (
-                  <div key={item.id} className="card" style={{ padding:'7px 11px', display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
-                    <span style={{ fontSize:15 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ color:'#ccc', fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div>
-                    </div>
-                    <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#666' }}>{item.code}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {userAssigned.length===0 && userItems.length===0 && (
-              <div style={{ paddingLeft:42, color:'#444', fontSize:12 }}>Brak sprzętu</div>
-            )}
-          </div>
-        );
-      })}
-
-      {warehouseItems.length>0 && (
-        <div style={{ marginTop:8 }}>
-          <div style={{ color:'#888', fontSize:11, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:8 }}>📦 W magazynie ({warehouseItems.length})</div>
-          <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-            {warehouseItems.map(item => (
-              <div key={item.id} className="card" style={{ padding:'8px 12px', display:'flex', alignItems:'center', gap:8 }}>
-                <span style={{ fontSize:16 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ color:'#ccc', fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div>
-                </div>
+            {userAssigned.map(item => (
+              <div key={item.id} className="card" style={{ padding:'7px 11px', display:'flex', alignItems:'center', gap:8, marginBottom:3, marginLeft:42, borderColor:'#818CF822' }}>
+                <span style={{ fontSize:15 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
+                <div style={{ flex:1, minWidth:0 }}><div style={{ color:'#bbb', fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div></div>
                 <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#666' }}>{item.code}</span>
               </div>
             ))}
+            {userItems.map(item => (
+              <div key={item.id} className="card" style={{ padding:'7px 11px', display:'flex', alignItems:'center', gap:8, marginBottom:3, marginLeft:42 }}>
+                <span style={{ fontSize:15 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
+                <div style={{ flex:1, minWidth:0 }}><div style={{ color:'#ccc', fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div></div>
+                <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#666' }}>{item.code}</span>
+              </div>
+            ))}
+            {userAssigned.length===0 && userItems.length===0 && <div style={{ paddingLeft:42, color:'#444', fontSize:12 }}>Brak sprzętu</div>}
           </div>
+        );
+      })}
+      {warehouseItems.length>0 && (
+        <div style={{ marginTop:8 }}>
+          <div style={{ color:'#888', fontSize:11, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:8 }}>📦 W magazynie ({warehouseItems.length})</div>
+          {warehouseItems.map(item => (
+            <div key={item.id} className="card" style={{ padding:'8px 12px', display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+              <span style={{ fontSize:16 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
+              <div style={{ flex:1, minWidth:0 }}><div style={{ color:'#ccc', fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div></div>
+              <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#666' }}>{item.code}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-function AdminView({ users, equipment, onSaveUsers, onSaveEquipment, onAssign, onBack }) {
+function AdminView({ users, equipment, onSaveUsers, onSaveEquipment, onAssign, onUpdateUser, onUpdateEquipment, onBack }) {
   const [tab, setTab] = useState('status');
   return (
     <div className="fade-in" style={{ padding:'16px 20px 40px', maxWidth:480, margin:'0 auto' }}>
@@ -475,8 +516,8 @@ function AdminView({ users, equipment, onSaveUsers, onSaveEquipment, onAssign, o
         ))}
       </div>
       {tab==='status' && <StatusTab users={users} equipment={equipment} />}
-      {tab==='users' && <UsersTab users={users} onSaveUsers={onSaveUsers} />}
-      {tab==='equipment' && <EquipmentTab equipment={equipment} users={users} onSaveEquipment={onSaveEquipment} onAssign={onAssign} />}
+      {tab==='users' && <UsersTab users={users} onSaveUsers={onSaveUsers} onUpdateUser={onUpdateUser} />}
+      {tab==='equipment' && <EquipmentTab equipment={equipment} users={users} onSaveEquipment={onSaveEquipment} onAssign={onAssign} onUpdateEquipment={onUpdateEquipment} />}
     </div>
   );
 }
@@ -517,10 +558,8 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
   const myItems = equipment.filter(e => e.location===user.id && !e.assigned_to);
   const warehouseCount = equipment.filter(e => e.location==='warehouse').length;
   const myHistory = history.filter(h => h.userId===user.id).length;
-
   return (
     <div className="fade-in" style={{ padding:'20px 20px 40px', maxWidth:480, margin:'0 auto' }}>
-
       {selectedItem && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', zIndex:500, display:'flex', alignItems:'flex-end', justifyContent:'center' }} onClick={()=>setSelectedItem(null)}>
           <div className="slide-up" onClick={e=>e.stopPropagation()} style={{ background:'#1a1a1a', borderRadius:'16px 16px 0 0', padding:24, width:'100%', maxWidth:480, paddingBottom:40 }}>
@@ -533,28 +572,19 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
             </div>
             {selectedItem.assigned_to === user.id ? (
               <>
-                <div style={{ color:'#818CF8', fontSize:13, marginBottom:16, padding:'10px 14px', background:'#818CF811', borderRadius:8, border:'1px solid #818CF822' }}>
-                  📌 Ten sprzęt jest przypisany do Ciebie na stałe.
-                </div>
-                <button className="btn-primary" onClick={()=>{ onAssign(selectedItem.id, null); setSelectedItem(null); }} style={{ background:'#F87171', marginBottom:10 }}>
-                  📤 Zdaj sprzęt i usuń przypisanie
-                </button>
+                <div style={{ color:'#818CF8', fontSize:13, marginBottom:16, padding:'10px 14px', background:'#818CF811', borderRadius:8, border:'1px solid #818CF822' }}>📌 Ten sprzęt jest przypisany do Ciebie na stałe.</div>
+                <button className="btn-primary" onClick={()=>{ onAssign(selectedItem.id, null); setSelectedItem(null); }} style={{ background:'#F87171', marginBottom:10 }}>📤 Zdaj sprzęt i usuń przypisanie</button>
               </>
             ) : (
               <>
-                <div style={{ color:'#888', fontSize:13, marginBottom:16, lineHeight:1.5 }}>
-                  Przypisz ten sprzęt do swojego konta — będzie Twój na stałe i nie pojawi się w puli do wypożyczenia.
-                </div>
-                <button className="btn-primary" onClick={()=>{ onAssign(selectedItem.id, user.id); setSelectedItem(null); }} style={{ marginBottom:10 }}>
-                  📌 Przypisz do siebie na stałe
-                </button>
+                <div style={{ color:'#888', fontSize:13, marginBottom:16, lineHeight:1.5 }}>Przypisz ten sprzęt do swojego konta — będzie Twój na stałe i nie pojawi się w puli do wypożyczenia przez innych.</div>
+                <button className="btn-primary" onClick={()=>{ onAssign(selectedItem.id, user.id); setSelectedItem(null); }} style={{ marginBottom:10 }}>📌 Przypisz do siebie na stałe</button>
               </>
             )}
             <button className="btn-ghost" onClick={()=>setSelectedItem(null)} style={{ width:'100%', textAlign:'center' }}>Anuluj</button>
           </div>
         </div>
       )}
-
       <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:24 }}>
         <Avatar user={user} size={46} />
         <div style={{ flex:1 }}>
@@ -563,7 +593,6 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
         </div>
         <button className="btn-ghost" onClick={onLogout} style={{ padding:'6px 10px', fontSize:11 }}>Wyloguj</button>
       </div>
-
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:24 }}>
         {[{val:myItems.length+assignedItems.length, color:'#FBB724', label:'U Ciebie'},{val:warehouseCount, color:'#22C55E', label:'Magazyn'},{val:myHistory, color:'#818CF8', label:'Twoje akcje'}].map(({val,color,label}) => (
           <div key={label} className="card" style={{ padding:14, textAlign:'center' }}>
@@ -572,47 +601,32 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
           </div>
         ))}
       </div>
-
       {assignedItems.length>0 && (
         <div style={{ marginBottom:18 }}>
-          <div style={{ color:'#818CF8', fontSize:12, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:8 }}>
-            📌 Sprzęt przypisany ({assignedItems.length}) <span style={{ color:'#555', fontWeight:400, fontSize:10, textTransform:'none' }}>— dotknij by zarządzać</span>
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-            {assignedItems.map(item => (
-              <div key={item.id} onClick={()=>setSelectedItem(item)} style={{ background:'#141414', border:'1.5px solid #818CF833', borderRadius:10, padding:'10px 13px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
-                <span style={{ fontSize:18 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ color:'#ccc', fontSize:13, fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div>
-                </div>
-                <span style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'#818CF8' }}>{item.code}</span>
-                <span style={{ color:'#555', fontSize:18 }}>›</span>
-              </div>
-            ))}
-          </div>
+          <div style={{ color:'#818CF8', fontSize:12, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:8 }}>📌 Sprzęt przypisany ({assignedItems.length}) <span style={{ color:'#555', fontWeight:400, fontSize:10, textTransform:'none' }}>— dotknij by zarządzać</span></div>
+          {assignedItems.map(item => (
+            <div key={item.id} onClick={()=>setSelectedItem(item)} style={{ background:'#141414', border:'1.5px solid #818CF833', borderRadius:10, padding:'10px 13px', display:'flex', alignItems:'center', gap:10, cursor:'pointer', marginBottom:4 }}>
+              <span style={{ fontSize:18 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
+              <div style={{ flex:1, minWidth:0 }}><div style={{ color:'#ccc', fontSize:13, fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div></div>
+              <span style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'#818CF8' }}>{item.code}</span>
+              <span style={{ color:'#555', fontSize:18 }}>›</span>
+            </div>
+          ))}
         </div>
       )}
-
       {myItems.length>0 && (
         <div style={{ marginBottom:22 }}>
-          <div style={{ color:'#888', fontSize:12, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:8 }}>
-            Sprzęt u Ciebie ({myItems.length}) <span style={{ color:'#555', fontWeight:400, fontSize:10, textTransform:'none' }}>— dotknij by przypisać</span>
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
-            {myItems.map(item => (
-              <div key={item.id} onClick={()=>setSelectedItem(item)} style={{ background:'#141414', border:'1.5px solid #1E1E1E', borderRadius:10, padding:'10px 13px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
-                <span style={{ fontSize:18 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ color:'#ccc', fontSize:13, fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div>
-                </div>
-                <span style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'#888' }}>{item.code}</span>
-                <span style={{ color:'#555', fontSize:18 }}>›</span>
-              </div>
-            ))}
-          </div>
+          <div style={{ color:'#888', fontSize:12, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:8 }}>Sprzęt u Ciebie ({myItems.length}) <span style={{ color:'#555', fontWeight:400, fontSize:10, textTransform:'none' }}>— dotknij by przypisać</span></div>
+          {myItems.map(item => (
+            <div key={item.id} onClick={()=>setSelectedItem(item)} style={{ background:'#141414', border:'1.5px solid #1E1E1E', borderRadius:10, padding:'10px 13px', display:'flex', alignItems:'center', gap:10, cursor:'pointer', marginBottom:5 }}>
+              <span style={{ fontSize:18 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
+              <div style={{ flex:1, minWidth:0 }}><div style={{ color:'#ccc', fontSize:13, fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div></div>
+              <span style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'#888' }}>{item.code}</span>
+              <span style={{ color:'#555', fontSize:18 }}>›</span>
+            </div>
+          ))}
         </div>
       )}
-
       <div style={{ color:'#888', fontSize:12, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:10 }}>Akcje</div>
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
         {[
@@ -624,10 +638,7 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
           <button key={action} className="action-tile" onClick={()=>onAction(action)}>
             <div style={{ display:'flex', alignItems:'center', gap:14 }}>
               <span style={{ fontSize:28 }}>{icon}</span>
-              <div>
-                <div style={{ color:'#eee', fontWeight:700, fontSize:15 }}>{label}</div>
-                <div style={{ color:'#888', fontSize:13, marginTop:2 }}>{sub}</div>
-              </div>
+              <div><div style={{ color:'#eee', fontWeight:700, fontSize:15 }}>{label}</div><div style={{ color:'#888', fontSize:13, marginTop:2 }}>{sub}</div></div>
             </div>
           </button>
         ))}
@@ -646,7 +657,6 @@ function ScanView({ user, equipment, users, mode, onConfirm, onBack }) {
   const mc = mode==='checkout'
     ? {title:'Pobierz sprzęt', verb:'Pobierz', color:'#FBB724', icon:'📤', source:'magazyn'}
     : {title:'Zwróć sprzęt', verb:'Zwróć', color:'#34D399', icon:'📥', source:'sprzęt u Ciebie'};
-  // Exclude assigned equipment from checkout
   const availableItems = mode==='checkout'
     ? equipment.filter(e => e.location==='warehouse' && !e.assigned_to)
     : equipment.filter(e => e.location===user.id && !e.assigned_to);
@@ -657,7 +667,7 @@ function ScanView({ user, equipment, users, mode, onConfirm, onBack }) {
     if (!item) {
       const exists = equipment.find(e => e.code===code);
       if (exists) {
-        if (exists.assigned_to) return {ok:false, msg:`Sprzęt przypisany na stałe do ${getLocationLabel(exists.assigned_to, users)}`};
+        if (exists.assigned_to) return {ok:false, msg:`Sprzęt przypisany do ${getLocationLabel(exists.assigned_to, users)}`};
         const msg = mode==='checkout' ? `Nie w magazynie (u: ${getLocationLabel(exists.location, users)})` : `Nie u Ciebie (u: ${getLocationLabel(exists.location, users)})`;
         return {ok:false, msg};
       }
@@ -683,7 +693,7 @@ function ScanView({ user, equipment, users, mode, onConfirm, onBack }) {
     <div className="fade-in" style={{ padding:24, maxWidth:480, margin:'0 auto', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14 }}>
       <div style={{ width:72, height:72, borderRadius:36, background:'#1a2a1a', border:'2px solid #22C55E', display:'flex', alignItems:'center', justifyContent:'center', fontSize:34 }}>✅</div>
       <div style={{ color:'#fff', fontWeight:800, fontSize:22 }}>Gotowe!</div>
-      <div style={{ color:'#888', fontSize:14, textAlign:'center' }}>{mode==='checkout'?'Pobrano':'Zwrócono'} {cart.length} {cart.length===1?'element':cart.length<5?'elementy':'elementów'}</div>
+      <div style={{ color:'#888', fontSize:14 }}>{mode==='checkout'?'Pobrano':'Zwrócono'} {cart.length} {cart.length===1?'element':cart.length<5?'elementy':'elementów'}</div>
       <button className="btn-primary" onClick={onBack} style={{ marginTop:8 }}>← Powrót do menu</button>
     </div>
   );
@@ -713,9 +723,8 @@ function ScanView({ user, equipment, users, mode, onConfirm, onBack }) {
           {availableItems.length===0 && <div style={{ color:'#555', textAlign:'center', padding:40, fontSize:14 }}>{mode==='checkout'?'Magazyn jest pusty':'Nie masz żadnego sprzętu'}</div>}
           {availableItems.map(item => {
             const inCart = !!cart.find(c=>c.id===item.id);
-            const flashing = flashId===item.id;
             return (
-              <div key={item.id} className={`scannable-item${inCart?' in-cart':''}${flashing?' flash':''}`} onClick={()=>handleItemClick(item)}>
+              <div key={item.id} className={`scannable-item${inCart?' in-cart':''}${flashId===item.id?' flash':''}`} onClick={()=>handleItemClick(item)}>
                 <span style={{ fontSize:22 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ color:inCart?'#86EFAC':'#ccc', fontSize:13, fontWeight:500 }}>{item.name}</div>
@@ -899,7 +908,8 @@ export default function App() {
         else if (payload.eventType==='DELETE') setEquipment(prev => prev.filter(e => e.id!==payload.old.id));
       })
       .on('postgres_changes', { event:'*', schema:'public', table:'users' }, (payload) => {
-        if (payload.eventType==='INSERT') setUsers(prev => prev.find(u=>u.id===payload.new.id) ? prev : [...prev, payload.new]);
+        if (payload.eventType==='UPDATE') setUsers(prev => prev.map(u => u.id===payload.new.id ? payload.new : u));
+        else if (payload.eventType==='INSERT') setUsers(prev => prev.find(u=>u.id===payload.new.id) ? prev : [...prev, payload.new]);
         else if (payload.eventType==='DELETE') setUsers(prev => prev.filter(u => u.id!==payload.old.id));
       })
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'history' }, (payload) => {
@@ -924,12 +934,22 @@ export default function App() {
     if (deleted.length) await Promise.all(deleted.map(u => supabase.from('users').delete().eq('id', u.id)));
   };
 
+  const handleUpdateUser = async (updatedUser) => {
+    setUsers(prev => prev.map(u => u.id===updatedUser.id ? updatedUser : u));
+    await supabase.from('users').update({ name:updatedUser.name, role:updatedUser.role, initials:updatedUser.initials, color:updatedUser.color }).eq('id', updatedUser.id);
+  };
+
   const handleSaveEquipment = async (newEquipment) => {
     const added = newEquipment.filter(e => !equipment.find(o=>o.id===e.id));
     const deleted = equipment.filter(e => !newEquipment.find(n=>n.id===e.id));
     setEquipment(newEquipment);
     if (added.length) await supabase.from('equipment').insert(added);
     if (deleted.length) await Promise.all(deleted.map(e => supabase.from('equipment').delete().eq('id', e.id)));
+  };
+
+  const handleUpdateEquipment = async (updatedItem) => {
+    setEquipment(prev => prev.map(e => e.id===updatedItem.id ? updatedItem : e));
+    await supabase.from('equipment').update({ name:updatedItem.name, cat:updatedItem.cat }).eq('id', updatedItem.id);
   };
 
   const handleAssign = async (itemId, userId) => {
@@ -976,7 +996,7 @@ export default function App() {
       <style>{STYLES}</style>
       <div style={{ fontSize:48 }}>⚠️</div>
       <div style={{ color:'#fff', fontWeight:700, fontSize:20 }}>Błąd połączenia</div>
-      <div style={{ color:'#888', fontSize:14, textAlign:'center' }}>Nie można połączyć się z bazą danych. Sprawdź internet.</div>
+      <div style={{ color:'#888', fontSize:14, textAlign:'center' }}>Nie można połączyć się z bazą danych.</div>
       <button className="btn-primary" onClick={fetchAll} style={{ maxWidth:240 }}>🔄 Spróbuj ponownie</button>
     </div>
   );
@@ -986,7 +1006,7 @@ export default function App() {
       <style>{STYLES}</style>
       {view==='login' && <LoginView users={users} onLogin={handleLogin} onReset={handleReset} onPrintCodes={()=>setView('print')} onAdmin={()=>setView('admin-login')} />}
       {view==='admin-login' && <AdminLoginView adminPassword={adminPassword} onLogin={()=>setView('admin')} onBack={()=>setView('login')} />}
-      {view==='admin' && <AdminView users={users} equipment={equipment} onSaveUsers={handleSaveUsers} onSaveEquipment={handleSaveEquipment} onAssign={handleAssign} onBack={()=>setView('login')} />}
+      {view==='admin' && <AdminView users={users} equipment={equipment} onSaveUsers={handleSaveUsers} onSaveEquipment={handleSaveEquipment} onAssign={handleAssign} onUpdateUser={handleUpdateUser} onUpdateEquipment={handleUpdateEquipment} onBack={()=>setView('login')} />}
       {view==='home' && currentUser && <HomeView user={currentUser} equipment={equipment} history={history} onAction={handleAction} onLogout={handleLogout} onAssign={handleAssign} />}
       {view==='scan' && currentUser && <ScanView user={currentUser} equipment={equipment} users={users} mode={scanMode} onConfirm={handleConfirm} onBack={()=>setView('home')} />}
       {view==='catalog' && <CatalogView equipment={equipment} users={users} onBack={()=>setView('home')} />}
