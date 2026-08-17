@@ -47,13 +47,8 @@ const STYLES = `
   .admin-input::placeholder { color: #aaa; }
   .scanner-overlay { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; }
   .scanner-overlay video { object-fit: cover !important; }
-  @media print { body { background: white !important; } .no-print { display: none !important; } .print-page { background: white !important; color: black !important; } .qr-print-item { border: 1px solid #ddd !important; page-break-inside: avoid; } }
+  @media print { body { background: white !important; } .no-print { display: none !important; } }
 `;
-
-const DEFAULT_USERS = [
-  { id: 'u1', name: 'Anna Kowalska',    role: 'Fotograf modelkowy',  initials: 'AK', color: '#FBB724' },
-  { id: 'u2', name: 'Marek Nowak',      role: 'Fotograf produktowy', initials: 'MN', color: '#34D399' },
-];
 
 const CATEGORIES = {
   STAT: { name: 'Statywy',      icon: '📐' },
@@ -77,24 +72,21 @@ function now() {
 
 const getLocationLabel = (loc, users) => {
   if (loc === 'warehouse') return 'Magazyn';
-  const user = (users || DEFAULT_USERS).find(u => u.id === loc);
+  const user = (users||[]).find(u => u.id === loc);
   return user ? user.name : loc;
 };
 
 function Avatar({ user, size = 40 }) {
-  return (
-    <div style={{ width: size, height: size, borderRadius: size/2, background: user.color+'1A', border: `1.5px solid ${user.color}44`, display:'flex', alignItems:'center', justifyContent:'center', color: user.color, fontFamily:'DM Mono,monospace', fontWeight:500, fontSize: size*.34, flexShrink:0 }}>{user.initials}</div>
-  );
+  return <div style={{ width:size, height:size, borderRadius:size/2, background:user.color+'1A', border:`1.5px solid ${user.color}44`, display:'flex', alignItems:'center', justifyContent:'center', color:user.color, fontFamily:'DM Mono,monospace', fontWeight:500, fontSize:size*.34, flexShrink:0 }}>{user.initials}</div>;
 }
 
 function QRScannerModal({ onScan, onClose, scannedCount }) {
   const [recentCodes, setRecentCodes] = useState([]);
   const [lastFeedback, setLastFeedback] = useState(null);
   const handleDetected = (results) => {
-    if (!results || results.length === 0) return;
+    if (!results?.length) return;
     const code = results[0].rawValue?.toUpperCase().trim();
-    if (!code) return;
-    if (recentCodes.includes(code)) return;
+    if (!code || recentCodes.includes(code)) return;
     setRecentCodes(prev => [...prev, code]);
     setTimeout(() => setRecentCodes(prev => prev.filter(c => c !== code)), 2000);
     if (navigator.vibrate) navigator.vibrate(80);
@@ -112,11 +104,11 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
         <button className="btn-primary" onClick={onClose} style={{ width:'auto', padding:'10px 20px', fontSize:14 }}>✓ Gotowe</button>
       </div>
       <div style={{ flex:1, position:'relative', background:'#000', overflow:'hidden' }}>
-        <Scanner onScan={handleDetected} onError={(err) => console.error(err)}
-          constraints={{ facingMode:'environment', width:{ ideal:1280 }, height:{ ideal:720 } }}
+        <Scanner onScan={handleDetected} onError={err => console.error(err)}
+          constraints={{ facingMode:'environment', width:{ideal:640}, height:{ideal:480} }}
           scanDelay={80}
           formats={['code_128','code_39','ean_13','ean_8','upc_a','upc_e','codabar','itf','qr_code','data_matrix']}
-          styles={{ container:{ width:'100%', height:'100%' }, video:{ width:'100%', height:'100%', objectFit:'cover' } }}
+          styles={{ container:{width:'100%',height:'100%'}, video:{width:'100%',height:'100%',objectFit:'cover'} }}
         />
         <div style={{ position:'absolute', inset:0, pointerEvents:'none', display:'flex', alignItems:'center', justifyContent:'center' }}>
           <div style={{ width:'85%', maxWidth:340, height:120, border:'3px solid #FBB724', borderRadius:12, boxShadow:'0 0 0 9999px rgba(0,0,0,0.5)', position:'relative' }}>
@@ -126,15 +118,13 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
           </div>
         </div>
         {lastFeedback && (
-          <div className="slide-up" style={{ position:'absolute', bottom:24, left:'50%', transform:'translateX(-50%)', background: lastFeedback.ok?'rgba(34,197,94,0.95)':'rgba(248,113,113,0.95)', color:'#fff', padding:'12px 20px', borderRadius:10, fontWeight:600, fontSize:14, maxWidth:'85%', textAlign:'center' }}>
+          <div className="slide-up" style={{ position:'absolute', bottom:24, left:'50%', transform:'translateX(-50%)', background:lastFeedback.ok?'rgba(34,197,94,0.95)':'rgba(248,113,113,0.95)', color:'#fff', padding:'12px 20px', borderRadius:10, fontWeight:600, fontSize:14, maxWidth:'85%', textAlign:'center' }}>
             {lastFeedback.ok?'✓ ':'⚠️ '}<strong>{lastFeedback.code}</strong>
             {lastFeedback.msg && <div style={{ fontSize:12, marginTop:4, opacity:.9 }}>{lastFeedback.msg}</div>}
           </div>
         )}
       </div>
-      <div style={{ padding:'14px 20px', background:'#0C0C0C', borderTop:'1px solid #222', textAlign:'center', color:'#888', fontSize:13 }}>
-        Skieruj aparat na kod QR lub kod kreskowy
-      </div>
+      <div style={{ padding:'14px 20px', background:'#0C0C0C', borderTop:'1px solid #222', textAlign:'center', color:'#888', fontSize:13 }}>Skieruj aparat na kod QR lub kod kreskowy</div>
     </div>
   );
 }
@@ -142,7 +132,7 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
 function AdminLoginView({ adminPassword, onLogin, onBack }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const handleSubmit = () => { if (password === adminPassword) { onLogin(); } else { setError('Nieprawidłowe hasło'); setPassword(''); } };
+  const handleSubmit = () => { if (password === adminPassword) onLogin(); else { setError('Nieprawidłowe hasło'); setPassword(''); } };
   return (
     <div className="fade-in" style={{ padding:'0 20px 40px', maxWidth:400, margin:'0 auto' }}>
       <div style={{ textAlign:'center', padding:'50px 0 32px' }}>
@@ -163,13 +153,16 @@ function AdminLoginView({ adminPassword, onLogin, onBack }) {
   );
 }
 
+// ── ImportPanel ─────────────────────────────────────────────────────────────
 function ImportPanel({ equipment, onSaveEquipment, onClose }) {
   const [raw, setRaw] = useState('');
   const [parsed, setParsed] = useState([]);
   const [done, setDone] = useState(false);
+
   const parseText = (text) => {
     if (!text.trim()) { setParsed([]); return; }
     const lines = text.trim().split('\n').filter(l => l.trim());
+    const seenCodes = new Set(); // FIX #6: detect duplicates within batch
     const items = lines.map(line => {
       const sep = line.includes('\t') ? '\t' : ',';
       const parts = line.split(sep).map(p => p.trim().replace(/^"|"$/g,''));
@@ -177,19 +170,23 @@ function ImportPanel({ equipment, onSaveEquipment, onClose }) {
       const name = (parts[1]||'').trim();
       const rawCat = (parts[2]||'').toUpperCase().trim();
       const cat = Object.keys(CATEGORIES).includes(rawCat) ? rawCat : 'INNE';
-      const isDup = !!equipment.find(e => e.code === code);
+      const isDup = !!equipment.find(e => e.code === code) || seenCodes.has(code);
+      if (code) seenCodes.add(code);
       const valid = !!(code && name);
       return { code, name, cat, isDup, valid };
     });
     setParsed(items);
   };
+
   const toImport = parsed.filter(i => i.valid && !i.isDup);
   const dupCount = parsed.filter(i => i.isDup).length;
+
   const handleImport = () => {
     const newItems = toImport.map(item => ({ id:'e'+Date.now()+'_'+Math.random().toString(36).slice(2), code:item.code, name:item.name, cat:item.cat, location:'warehouse', assigned_to:null }));
     onSaveEquipment([...equipment, ...newItems]);
     setDone(true);
   };
+
   if (done) return (
     <div className="card slide-up" style={{ padding:20, marginBottom:14, textAlign:'center' }}>
       <div style={{ fontSize:36, marginBottom:8 }}>✅</div>
@@ -197,6 +194,7 @@ function ImportPanel({ equipment, onSaveEquipment, onClose }) {
       <button className="btn-primary" onClick={onClose} style={{ marginTop:8 }}>Gotowe</button>
     </div>
   );
+
   return (
     <div className="card slide-up" style={{ padding:16, marginBottom:14 }}>
       <div style={{ color:'#888', fontSize:11, marginBottom:10, textTransform:'uppercase', letterSpacing:'.08em' }}>📥 Import z Excela</div>
@@ -222,17 +220,14 @@ function ImportPanel({ equipment, onSaveEquipment, onClose }) {
   );
 }
 
-// ── Formularz edycji użytkownika — poza komponentem (fix utraty fokusa) ────
-function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, login, onLoginChange, password, onPasswordChange, selectedColor, onColorChange, initials, isAdmin, onIsAdminChange, onSave, onCancel, saveLabel }) {
+// ── UserEditFormInline — poza komponentem (fix utraty fokusa) ───────────────
+function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, login, onLoginChange, password, onPasswordChange, isAdmin, onIsAdminChange, selectedColor, onColorChange, initials, onSave, onCancel, saveLabel }) {
   return (
     <div className="card slide-up" style={{ padding:16, marginBottom:14, border:'1px solid #FBB72433' }}>
       <div style={{ color:'#888', fontSize:11, marginBottom:12, textTransform:'uppercase', letterSpacing:'.08em' }}>{title}</div>
       <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14, padding:'10px 12px', background:'#1a1a1a', borderRadius:8 }}>
         <div style={{ width:40, height:40, borderRadius:20, background:selectedColor+'1A', border:`1.5px solid ${selectedColor}44`, display:'flex', alignItems:'center', justifyContent:'center', color:selectedColor, fontFamily:'DM Mono,monospace', fontWeight:500, fontSize:14 }}>{initials}</div>
-        <div>
-          <div style={{ color:'#eee', fontWeight:600, fontSize:14 }}>{name||'Imię i nazwisko'}</div>
-          <div style={{ color:'#666', fontSize:12 }}>{role||'Rola'}</div>
-        </div>
+        <div><div style={{ color:'#eee', fontWeight:600, fontSize:14 }}>{name||'Imię i nazwisko'}</div><div style={{ color:'#666', fontSize:12 }}>{role||'Rola'}</div></div>
       </div>
       <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
         <input className="admin-input" placeholder="Imię i nazwisko *" value={name} onChange={e=>onNameChange(e.target.value)} />
@@ -240,7 +235,7 @@ function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, log
         <div style={{ borderTop:'1px solid #222', paddingTop:10 }}>
           <div style={{ color:'#FBB724', fontSize:11, marginBottom:8, textTransform:'uppercase', letterSpacing:'.06em' }}>🔑 Dane logowania</div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            <input className="admin-input" placeholder="Login (np. tomasz.babinek) *" value={login} onChange={e=>onLoginChange(e.target.value.toLowerCase())} autoCapitalize="none" autoCorrect="off" />
+            <input className="admin-input" placeholder="Login (np. tomasz.babinek) *" value={login} onChange={e=>onLoginChange(e.target.value.toLowerCase())} autoCapitalize="none" autoCorrect="off" autoComplete="new-password" />
             <input className="admin-input" type="text" placeholder="Hasło *" value={password} onChange={e=>onPasswordChange(e.target.value)} autoComplete="new-password" />
           </div>
         </div>
@@ -249,7 +244,7 @@ function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, log
             <div style={{ color:'#eee', fontSize:13, fontWeight:600 }}>Uprawnienia administratora</div>
             <div style={{ color:'#666', fontSize:12, marginTop:2 }}>Dostęp do Panelu Admina po zalogowaniu</div>
           </div>
-          <div style={{ width:48, height:26, borderRadius:13, background:isAdmin?'#22C55E':'#333', cursor:'pointer', position:'relative', transition:'background .2s', flexShrink:0, marginLeft:12 }}>
+          <div style={{ width:48, height:26, borderRadius:13, background:isAdmin?'#22C55E':'#333', position:'relative', transition:'background .2s', flexShrink:0, marginLeft:12 }}>
             <div style={{ position:'absolute', top:3, left:isAdmin?23:3, width:20, height:20, borderRadius:10, background:'#fff', transition:'left .2s', boxShadow:'0 1px 3px rgba(0,0,0,0.3)' }} />
           </div>
         </div>
@@ -260,7 +255,7 @@ function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, log
           </div>
         </div>
         <div style={{ display:'flex', gap:8, marginTop:4 }}>
-          <button className="btn-primary" onClick={onSave} disabled={!name.trim() || !login.trim() || !password.trim()}>{saveLabel}</button>
+          <button className="btn-primary" onClick={onSave} disabled={!name.trim()||!login.trim()||!password.trim()}>{saveLabel}</button>
           <button className="btn-ghost" onClick={onCancel} style={{ flexShrink:0 }}>Anuluj</button>
         </div>
       </div>
@@ -268,7 +263,7 @@ function UserEditFormInline({ title, name, onNameChange, role, onRoleChange, log
   );
 }
 
-// ── USERS TAB z edycją ──────────────────────────────────────────────────────
+// ── UsersTab ────────────────────────────────────────────────────────────────
 function UsersTab({ users, onSaveUsers, onUpdateUser }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -280,35 +275,31 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
   const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
 
   const initials = name.trim().split(' ').filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'??';
-
   const resetForm = () => { setName(''); setRole(''); setLogin(''); setPassword(''); setIsAdmin(false); setSelectedColor(PRESET_COLORS[0]); };
 
   const handleAdd = () => {
-    if (!name.trim() || !login.trim() || !password.trim()) return;
+    if (!name.trim()||!login.trim()||!password.trim()) return;
+    if (users.find(u => u.login===login.trim())) { alert(`Login "${login.trim()}" jest już zajęty!`); return; } // FIX #7
     onSaveUsers([...users, { id:'u'+Date.now(), name:name.trim(), role:role.trim()||'Fotograf', initials, color:selectedColor, login:login.trim(), password, is_admin:isAdmin }]);
     resetForm(); setShowAddForm(false);
   };
 
   const handleEditStart = (user) => {
-    setEditingUser(user);
-    setName(user.name);
-    setRole(user.role);
-    setLogin(user.login||'');
-    setPassword(user.password||'');
-    setIsAdmin(user.is_admin||false);
-    setSelectedColor(user.color);
-    setShowAddForm(false);
+    setEditingUser(user); setName(user.name); setRole(user.role);
+    setLogin(user.login||''); setPassword(user.password||'');
+    setIsAdmin(user.is_admin||false); setSelectedColor(user.color); setShowAddForm(false);
   };
 
   const handleEditSave = () => {
-    if (!name.trim() || !login.trim() || !password.trim()) return;
+    if (!name.trim()||!login.trim()||!password.trim()) return;
+    if (users.find(u => u.login===login.trim() && u.id!==editingUser.id)) { alert(`Login "${login.trim()}" jest już zajęty!`); return; } // FIX #7
     const newInitials = name.trim().split(' ').filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'??';
     onUpdateUser({ ...editingUser, name:name.trim(), role:role.trim()||'Fotograf', initials:newInitials, color:selectedColor, login:login.trim(), password, is_admin:isAdmin });
     setEditingUser(null); resetForm();
   };
 
   const handleDelete = (userId) => {
-    if (!window.confirm('Usunąć tego użytkownika?')) return;
+    if (!window.confirm('Usunąć tego użytkownika? Jego sprzęt wróci do magazynu.')) return;
     onSaveUsers(users.filter(u=>u.id!==userId));
   };
 
@@ -316,7 +307,7 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
     <div>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
         <div style={{ color:'#888', fontSize:13 }}>{users.length} użytkowników</div>
-        <button className="btn-primary" onClick={()=>{ setShowAddForm(!showAddForm); setEditingUser(null); setName(''); setRole(''); setSelectedColor(PRESET_COLORS[0]); }} style={{ width:'auto', padding:'8px 16px', fontSize:13 }}>
+        <button className="btn-primary" onClick={()=>{ setShowAddForm(!showAddForm); setEditingUser(null); resetForm(); }} style={{ width:'auto', padding:'8px 16px', fontSize:13 }}>
           {showAddForm?'✕ Anuluj':'+ Dodaj użytkownika'}
         </button>
       </div>
@@ -329,7 +320,7 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
         {users.map(u => (
           <div key={u.id}>
             <div className="card" style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:12 }}>
-              <Avatar user={editingUser?.id===u.id ? {...u, name:name||u.name, initials, color:selectedColor} : u} size={40} />
+              <Avatar user={u} size={40} />
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ color:'#eee', fontWeight:600, fontSize:14 }}>{u.name}</div>
                 <div style={{ color:'#888', fontSize:12, marginTop:2 }}>{u.role}</div>
@@ -340,7 +331,7 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
                 </div>
               </div>
               <div style={{ display:'flex', gap:6 }}>
-                <button className="btn-edit" onClick={()=>handleEditStart(u)}>✏️ Edytuj</button>
+                <button className="btn-edit" onClick={()=>editingUser?.id===u.id?setEditingUser(null):handleEditStart(u)}>✏️</button>
                 <button className="btn-danger" onClick={()=>handleDelete(u.id)}>Usuń</button>
               </div>
             </div>
@@ -356,8 +347,8 @@ function UsersTab({ users, onSaveUsers, onUpdateUser }) {
   );
 }
 
-// ── EQUIPMENT TAB z edycją ──────────────────────────────────────────────────
-function EquipmentTab({ equipment, users, onSaveEquipment, onAssign, onUpdateEquipment }) {
+// ── EquipmentTab ────────────────────────────────────────────────────────────
+function EquipmentTab({ equipment, onSaveEquipment, onUpdateEquipment }) {
   const [mode, setMode] = useState('list');
   const [search, setSearch] = useState('');
   const [editingItem, setEditingItem] = useState(null);
@@ -367,34 +358,21 @@ function EquipmentTab({ equipment, users, onSaveEquipment, onAssign, onUpdateEqu
   const [editName, setEditName] = useState('');
   const [editCat, setEditCat] = useState('LAMP');
 
+  const selectStyle = { background:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:8, padding:'11px 14px', color:'#ddd', fontSize:14, outline:'none', width:'100%' };
+
   const handleAdd = () => {
     const trimCode = code.trim().toUpperCase();
-    if (!trimCode || !name.trim()) return;
-    if (equipment.find(e => e.code === trimCode)) { alert(`Kod ${trimCode} już istnieje!`); return; }
+    if (!trimCode||!name.trim()) return;
+    if (equipment.find(e => e.code===trimCode)) { alert(`Kod ${trimCode} już istnieje!`); return; }
     onSaveEquipment([...equipment, { id:'e'+Date.now(), code:trimCode, name:name.trim(), cat, location:'warehouse', assigned_to:null }]);
     setCode(''); setName(''); setCat('LAMP'); setMode('list');
   };
 
-  const handleEditStart = (item) => {
-    setEditingItem(item);
-    setEditName(item.name);
-    setEditCat(item.cat);
-  };
-
-  const handleEditSave = () => {
-    if (!editName.trim()) return;
-    onUpdateEquipment({ ...editingItem, name:editName.trim(), cat:editCat });
-    setEditingItem(null);
-  };
-
-  const handleDelete = (itemId) => {
-    if (!window.confirm('Usunąć ten element sprzętu?')) return;
-    onSaveEquipment(equipment.filter(e => e.id !== itemId));
-  };
+  const handleEditStart = (item) => { setEditingItem(item); setEditName(item.name); setEditCat(item.cat); };
+  const handleEditSave = () => { if (!editName.trim()) return; onUpdateEquipment({ ...editingItem, name:editName.trim(), cat:editCat }); setEditingItem(null); };
+  const handleDelete = (itemId) => { if (!window.confirm('Usunąć ten element?')) return; onSaveEquipment(equipment.filter(e => e.id!==itemId)); };
 
   const filtered = equipment.filter(e => !search || e.name.toLowerCase().includes(search.toLowerCase()) || e.code.toLowerCase().includes(search.toLowerCase()));
-
-  const selectStyle = { background:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:8, padding:'11px 14px', color:'#ddd', fontSize:14, outline:'none', width:'100%' };
 
   return (
     <div>
@@ -412,48 +390,41 @@ function EquipmentTab({ equipment, users, onSaveEquipment, onAssign, onUpdateEqu
 
       {mode==='add' && (
         <div className="card slide-up" style={{ padding:16, marginBottom:14 }}>
-          <div style={{ color:'#888', fontSize:11, marginBottom:12, textTransform:'uppercase', letterSpacing:'.08em' }}>Nowy element sprzętu</div>
+          <div style={{ color:'#888', fontSize:11, marginBottom:12, textTransform:'uppercase', letterSpacing:'.08em' }}>Nowy element</div>
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            <input className="admin-input" placeholder="Kod z naklejki *" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} style={{ fontFamily:'DM Mono,monospace', letterSpacing:'.05em' }} />
+            <input className="admin-input" placeholder="Kod z naklejki *" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} style={{ fontFamily:'DM Mono,monospace' }} />
             <input className="admin-input" placeholder="Nazwa sprzętu *" value={name} onChange={e=>setName(e.target.value)} />
             <select value={cat} onChange={e=>setCat(e.target.value)} style={selectStyle}>
-              {Object.entries(CATEGORIES).map(([key,val]) => <option key={key} value={key}>{val.icon} {val.name}</option>)}
+              {Object.entries(CATEGORIES).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.name}</option>)}
             </select>
             <button className="btn-primary" onClick={handleAdd} disabled={!code.trim()||!name.trim()} style={{ marginTop:4 }}>Dodaj do magazynu</button>
           </div>
         </div>
       )}
 
-      <input className="search-input" placeholder="🔍 Szukaj po nazwie lub kodzie..." value={search} onChange={e=>setSearch(e.target.value)} style={{ marginBottom:12 }} />
+      <input className="search-input" placeholder="🔍 Szukaj..." value={search} onChange={e=>setSearch(e.target.value)} style={{ marginBottom:12 }} />
 
       <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-        {filtered.length===0 && <div style={{ color:'#555', textAlign:'center', padding:40, fontSize:14 }}>{search?'Brak wyników':'Brak sprzętu'}</div>}
         {filtered.map(item => (
           <div key={item.id}>
-            <div className="card" style={{ padding:'10px 13px' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <span style={{ fontSize:20 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ color:'#ccc', fontSize:13, fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div>
-                  <div style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'#666', marginTop:2 }}>{item.code}</div>
-                </div>
-                <div style={{ display:'flex', gap:6 }}>
-                  <button className="btn-edit" onClick={()=>editingItem?.id===item.id?setEditingItem(null):handleEditStart(item)}>
-                    {editingItem?.id===item.id?'✕':'✏️'}
-                  </button>
-                  <button className="btn-danger" onClick={()=>handleDelete(item.id)} style={{ padding:'6px 10px', fontSize:12 }}>Usuń</button>
-                </div>
+            <div className="card" style={{ padding:'10px 13px', display:'flex', alignItems:'center', gap:10 }}>
+              <span style={{ fontSize:20 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ color:'#ccc', fontSize:13, fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div>
+                <div style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'#666', marginTop:2 }}>{item.code}</div>
+              </div>
+              <div style={{ display:'flex', gap:6 }}>
+                <button className="btn-edit" onClick={()=>editingItem?.id===item.id?setEditingItem(null):handleEditStart(item)}>{editingItem?.id===item.id?'✕':'✏️'}</button>
+                <button className="btn-danger" onClick={()=>handleDelete(item.id)} style={{ padding:'6px 10px', fontSize:12 }}>Usuń</button>
               </div>
             </div>
-
             {editingItem?.id===item.id && (
               <div className="card slide-up" style={{ padding:14, marginTop:4, border:'1px solid #FBB72433' }}>
-                <div style={{ color:'#888', fontSize:11, marginBottom:10, textTransform:'uppercase', letterSpacing:'.08em' }}>Edytuj sprzęt</div>
-                <div style={{ color:'#555', fontSize:11, marginBottom:10, fontFamily:'DM Mono,monospace' }}>Kod: {item.code} (niezmienialny)</div>
+                <div style={{ color:'#555', fontSize:11, marginBottom:8, fontFamily:'DM Mono,monospace' }}>Kod: {item.code}</div>
                 <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                  <input className="admin-input" placeholder="Nazwa sprzętu *" value={editName} onChange={e=>setEditName(e.target.value)} />
+                  <input className="admin-input" placeholder="Nazwa *" value={editName} onChange={e=>setEditName(e.target.value)} />
                   <select value={editCat} onChange={e=>setEditCat(e.target.value)} style={selectStyle}>
-                    {Object.entries(CATEGORIES).map(([key,val]) => <option key={key} value={key}>{val.icon} {val.name}</option>)}
+                    {Object.entries(CATEGORIES).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.name}</option>)}
                   </select>
                   <div style={{ display:'flex', gap:8 }}>
                     <button className="btn-primary" onClick={handleEditSave} disabled={!editName.trim()}>💾 Zapisz</button>
@@ -469,6 +440,7 @@ function EquipmentTab({ equipment, users, onSaveEquipment, onAssign, onUpdateEqu
   );
 }
 
+// ── StatusTab ───────────────────────────────────────────────────────────────
 function StatusTab({ users, equipment }) {
   const warehouseItems = equipment.filter(e => e.location==='warehouse' && !e.assigned_to);
   return (
@@ -496,15 +468,8 @@ function StatusTab({ users, equipment }) {
                 {userItems.length>0 && <div style={{ background:'#FBB72422', border:'1px solid #FBB72444', borderRadius:6, padding:'3px 8px', color:'#FBB724', fontSize:11 }}>📤 {userItems.length}</div>}
               </div>
             </div>
-            {userAssigned.map(item => (
-              <div key={item.id} className="card" style={{ padding:'7px 11px', display:'flex', alignItems:'center', gap:8, marginBottom:3, marginLeft:42, borderColor:'#818CF822' }}>
-                <span style={{ fontSize:15 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
-                <div style={{ flex:1, minWidth:0 }}><div style={{ color:'#bbb', fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div></div>
-                <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#666' }}>{item.code}</span>
-              </div>
-            ))}
-            {userItems.map(item => (
-              <div key={item.id} className="card" style={{ padding:'7px 11px', display:'flex', alignItems:'center', gap:8, marginBottom:3, marginLeft:42 }}>
+            {[...userAssigned, ...userItems].map(item => (
+              <div key={item.id} className="card" style={{ padding:'7px 11px', display:'flex', alignItems:'center', gap:8, marginBottom:3, marginLeft:42, borderColor:item.assigned_to?'#818CF822':'#202020' }}>
                 <span style={{ fontSize:15 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
                 <div style={{ flex:1, minWidth:0 }}><div style={{ color:'#ccc', fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.name}</div></div>
                 <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#666' }}>{item.code}</span>
@@ -530,6 +495,7 @@ function StatusTab({ users, equipment }) {
   );
 }
 
+// ── AdminView ───────────────────────────────────────────────────────────────
 function AdminView({ users, equipment, onSaveUsers, onSaveEquipment, onAssign, onUpdateUser, onUpdateEquipment, onBack }) {
   const [tab, setTab] = useState('status');
   return (
@@ -548,11 +514,12 @@ function AdminView({ users, equipment, onSaveUsers, onSaveEquipment, onAssign, o
       </div>
       {tab==='status' && <StatusTab users={users} equipment={equipment} />}
       {tab==='users' && <UsersTab users={users} onSaveUsers={onSaveUsers} onUpdateUser={onUpdateUser} />}
-      {tab==='equipment' && <EquipmentTab equipment={equipment} users={users} onSaveEquipment={onSaveEquipment} onAssign={onAssign} onUpdateEquipment={onUpdateEquipment} />}
+      {tab==='equipment' && <EquipmentTab equipment={equipment} onSaveEquipment={onSaveEquipment} onUpdateEquipment={onUpdateEquipment} />}
     </div>
   );
 }
 
+// ── LoginView ───────────────────────────────────────────────────────────────
 function LoginView({ onLoginWithCredentials, onAdmin }) {
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
@@ -560,14 +527,10 @@ function LoginView({ onLoginWithCredentials, onAdmin }) {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!login.trim() || !password.trim()) return;
-    setLoading(true);
-    setError('');
+    if (!login.trim()||!password.trim()) return;
+    setLoading(true); setError('');
     const ok = await onLoginWithCredentials(login.trim(), password);
-    if (!ok) {
-      setError('Nieprawidłowy login lub hasło');
-      setPassword('');
-    }
+    if (!ok) { setError('Nieprawidłowy login lub hasło'); setPassword(''); }
     setLoading(false);
   };
 
@@ -578,48 +541,18 @@ function LoginView({ onLoginWithCredentials, onAdmin }) {
         <div style={{ color:'#fff', fontWeight:800, fontSize:26 }}>Studio Inventory</div>
         <div style={{ color:'#888', fontSize:13, marginTop:6 }}>Zaloguj się do swojego konta</div>
       </div>
-
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
         <div>
           <div style={{ color:'#888', fontSize:12, marginBottom:6 }}>Login</div>
-          <input
-            className="admin-input"
-            type="text"
-            placeholder="Twój login"
-            value={login}
-            onChange={e => { setLogin(e.target.value); setError(''); }}
-            onKeyDown={e => e.key==='Enter' && handleSubmit()}
-            style={{ fontSize:16, padding:'14px 16px' }}
-            autoCapitalize="none"
-            autoCorrect="off"
-            autoComplete="username"
-          />
+          <input className="admin-input" type="text" placeholder="Twój login" value={login} onChange={e=>{setLogin(e.target.value);setError('');}} onKeyDown={e=>e.key==='Enter'&&handleSubmit()} style={{ fontSize:16, padding:'14px 16px' }} autoCapitalize="none" autoCorrect="off" autoComplete="username" />
         </div>
         <div>
           <div style={{ color:'#888', fontSize:12, marginBottom:6 }}>Hasło</div>
-          <input
-            className="admin-input"
-            type="password"
-            placeholder="Twoje hasło"
-            value={password}
-            onChange={e => { setPassword(e.target.value); setError(''); }}
-            onKeyDown={e => e.key==='Enter' && handleSubmit()}
-            style={{ fontSize:16, padding:'14px 16px' }}
-            autoComplete="current-password"
-          />
+          <input className="admin-input" type="password" placeholder="Twoje hasło" value={password} onChange={e=>{setPassword(e.target.value);setError('');}} onKeyDown={e=>e.key==='Enter'&&handleSubmit()} style={{ fontSize:16, padding:'14px 16px' }} autoComplete="current-password" />
         </div>
-
-        {error && (
-          <div className="slide-up" style={{ color:'#F87171', fontSize:13, padding:'10px 14px', background:'#F8717111', borderRadius:8, border:'1px solid #F8717133' }}>
-            ⚠️ {error}
-          </div>
-        )}
-
-        <button className="btn-primary" onClick={handleSubmit} disabled={!login.trim() || !password.trim() || loading} style={{ marginTop:4 }}>
-          {loading ? 'Logowanie...' : 'Zaloguj się →'}
-        </button>
+        {error && <div className="slide-up" style={{ color:'#F87171', fontSize:13, padding:'10px 14px', background:'#F8717111', borderRadius:8, border:'1px solid #F8717133' }}>⚠️ {error}</div>}
+        <button className="btn-primary" onClick={handleSubmit} disabled={!login.trim()||!password.trim()||loading} style={{ marginTop:4 }}>{loading?'Logowanie...':'Zaloguj się →'}</button>
       </div>
-
       <div style={{ marginTop:32, textAlign:'center' }}>
         <button className="btn-ghost" onClick={onAdmin} style={{ fontSize:12 }}>🔐 Panel Admina</button>
       </div>
@@ -627,12 +560,14 @@ function LoginView({ onLoginWithCredentials, onAdmin }) {
   );
 }
 
+// ── HomeView ────────────────────────────────────────────────────────────────
 function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
   const [selectedItem, setSelectedItem] = useState(null);
   const assignedItems = equipment.filter(e => e.assigned_to===user.id);
   const myItems = equipment.filter(e => e.location===user.id && !e.assigned_to);
   const warehouseCount = equipment.filter(e => e.location==='warehouse').length;
   const myHistory = history.filter(h => h.userId===user.id).length;
+
   return (
     <div className="fade-in" style={{ padding:'20px 20px 40px', maxWidth:480, margin:'0 auto' }}>
       {selectedItem && (
@@ -645,14 +580,14 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
                 <div style={{ fontFamily:'DM Mono,monospace', fontSize:12, color:'#666', marginTop:2 }}>{selectedItem.code}</div>
               </div>
             </div>
-            {selectedItem.assigned_to === user.id ? (
+            {selectedItem.assigned_to===user.id ? (
               <>
                 <div style={{ color:'#818CF8', fontSize:13, marginBottom:16, padding:'10px 14px', background:'#818CF811', borderRadius:8, border:'1px solid #818CF822' }}>📌 Ten sprzęt jest przypisany do Ciebie na stałe.</div>
                 <button className="btn-primary" onClick={()=>{ onAssign(selectedItem.id, null); setSelectedItem(null); }} style={{ background:'#F87171', marginBottom:10 }}>📤 Zdaj sprzęt i usuń przypisanie</button>
               </>
             ) : (
               <>
-                <div style={{ color:'#888', fontSize:13, marginBottom:16, lineHeight:1.5 }}>Przypisz ten sprzęt do swojego konta — będzie Twój na stałe i nie pojawi się w puli do wypożyczenia przez innych.</div>
+                <div style={{ color:'#888', fontSize:13, marginBottom:16, lineHeight:1.5 }}>Przypisz ten sprzęt do swojego konta — będzie Twój na stałe i nie pojawi się w puli do wypożyczenia.</div>
                 <button className="btn-primary" onClick={()=>{ onAssign(selectedItem.id, user.id); setSelectedItem(null); }} style={{ marginBottom:10 }}>📌 Przypisz do siebie na stałe</button>
               </>
             )}
@@ -660,6 +595,7 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
           </div>
         </div>
       )}
+
       <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:24 }}>
         <Avatar user={user} size={46} />
         <div style={{ flex:1 }}>
@@ -668,6 +604,7 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
         </div>
         <button className="btn-ghost" onClick={onLogout} style={{ padding:'6px 10px', fontSize:11 }}>Wyloguj</button>
       </div>
+
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:24 }}>
         {[{val:myItems.length+assignedItems.length, color:'#FBB724', label:'U Ciebie'},{val:warehouseCount, color:'#22C55E', label:'Magazyn'},{val:myHistory, color:'#818CF8', label:'Twoje akcje'}].map(({val,color,label}) => (
           <div key={label} className="card" style={{ padding:14, textAlign:'center' }}>
@@ -676,6 +613,7 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
           </div>
         ))}
       </div>
+
       {assignedItems.length>0 && (
         <div style={{ marginBottom:18 }}>
           <div style={{ color:'#818CF8', fontSize:12, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:8 }}>📌 Sprzęt przypisany ({assignedItems.length}) <span style={{ color:'#555', fontWeight:400, fontSize:10, textTransform:'none' }}>— dotknij by zarządzać</span></div>
@@ -689,6 +627,7 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
           ))}
         </div>
       )}
+
       {myItems.length>0 && (
         <div style={{ marginBottom:22 }}>
           <div style={{ color:'#888', fontSize:12, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:8 }}>Sprzęt u Ciebie ({myItems.length}) <span style={{ color:'#555', fontWeight:400, fontSize:10, textTransform:'none' }}>— dotknij by przypisać</span></div>
@@ -702,6 +641,7 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
           ))}
         </div>
       )}
+
       <div style={{ color:'#888', fontSize:12, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:10 }}>Akcje</div>
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
         {[
@@ -723,6 +663,7 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
   );
 }
 
+// ── ScanView ────────────────────────────────────────────────────────────────
 function ScanView({ user, equipment, users, mode, onConfirm, onBack }) {
   const [codeInput, setCodeInput] = useState('');
   const [cart, setCart] = useState([]);
@@ -730,12 +671,15 @@ function ScanView({ user, equipment, users, mode, onConfirm, onBack }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+
   const mc = mode==='checkout'
     ? {title:'Pobierz sprzęt', verb:'Pobierz', color:'#FBB724', icon:'📤', source:'magazyn'}
     : {title:'Zwróć sprzęt', verb:'Zwróć', color:'#34D399', icon:'📥', source:'sprzęt u Ciebie'};
+
   const availableItems = mode==='checkout'
     ? equipment.filter(e => e.location==='warehouse' && !e.assigned_to)
     : equipment.filter(e => e.location===user.id && !e.assigned_to);
+
   const tryAddCode = (rawCode) => {
     const code = rawCode.trim().toUpperCase();
     if (!code) return {ok:false, msg:'Pusty kod'};
@@ -744,27 +688,29 @@ function ScanView({ user, equipment, users, mode, onConfirm, onBack }) {
       const exists = equipment.find(e => e.code===code);
       if (exists) {
         if (exists.assigned_to) return {ok:false, msg:`Sprzęt przypisany do ${getLocationLabel(exists.assigned_to, users)}`};
-        const msg = mode==='checkout' ? `Nie w magazynie (u: ${getLocationLabel(exists.location, users)})` : `Nie u Ciebie (u: ${getLocationLabel(exists.location, users)})`;
-        return {ok:false, msg};
+        return {ok:false, msg:mode==='checkout'?`Nie w magazynie (u: ${getLocationLabel(exists.location, users)})`:`Nie u Ciebie`};
       }
       return {ok:false, msg:'Nieznany kod'};
     }
     if (cart.find(c => c.id===item.id)) return {ok:false, msg:'Już dodany'};
     setCart(prev => [...prev, item]);
-    setFlashId(item.id);
-    setTimeout(()=>setFlashId(null), 500);
+    setFlashId(item.id); setTimeout(()=>setFlashId(null), 500);
     return {ok:true, msg:item.name};
   };
+
   const handleAddByCode = () => {
     const result = tryAddCode(codeInput);
     if (!result.ok) { setErrorMsg(result.msg); setTimeout(()=>setErrorMsg(''),3000); }
     else setCodeInput('');
   };
+
   const handleItemClick = (item) => {
     if (cart.find(c=>c.id===item.id)) setCart(cart.filter(c=>c.id!==item.id));
     else { setCart([...cart, item]); setFlashId(item.id); setTimeout(()=>setFlashId(null),400); }
   };
+
   const handleConfirm = () => { onConfirm({mode, cart}); setConfirmed(true); };
+
   if (confirmed) return (
     <div className="fade-in" style={{ padding:24, maxWidth:480, margin:'0 auto', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14 }}>
       <div style={{ width:72, height:72, borderRadius:36, background:'#1a2a1a', border:'2px solid #22C55E', display:'flex', alignItems:'center', justifyContent:'center', fontSize:34 }}>✅</div>
@@ -773,6 +719,7 @@ function ScanView({ user, equipment, users, mode, onConfirm, onBack }) {
       <button className="btn-primary" onClick={onBack} style={{ marginTop:8 }}>← Powrót do menu</button>
     </div>
   );
+
   return (
     <>
       {scannerOpen && <QRScannerModal onScan={tryAddCode} onClose={()=>setScannerOpen(false)} scannedCount={cart.length} />}
@@ -789,7 +736,7 @@ function ScanView({ user, equipment, users, mode, onConfirm, onBack }) {
         <div className="card" style={{ padding:12, marginBottom:14 }}>
           <div style={{ color:'#888', fontSize:12, marginBottom:8, letterSpacing:'.05em', textTransform:'uppercase' }}>Lub wpisz kod ręcznie</div>
           <div style={{ display:'flex', gap:8 }}>
-            <input type="text" className="code-input" placeholder="STAT-001" value={codeInput} onChange={e=>{setCodeInput(e.target.value);setErrorMsg('');}} onKeyDown={e=>e.key==='Enter'&&handleAddByCode()} />
+            <input type="text" className="code-input" placeholder="KOD-001" value={codeInput} onChange={e=>{setCodeInput(e.target.value);setErrorMsg('');}} onKeyDown={e=>e.key==='Enter'&&handleAddByCode()} />
             <button className="btn-primary" onClick={handleAddByCode} disabled={!codeInput.trim()} style={{ width:'auto', padding:'0 20px', flexShrink:0, fontSize:13 }}>Dodaj</button>
           </div>
           {errorMsg && <div className="slide-up" style={{ color:'#F87171', fontSize:13, marginTop:8 }}>⚠️ {errorMsg}</div>}
@@ -825,6 +772,7 @@ function ScanView({ user, equipment, users, mode, onConfirm, onBack }) {
   );
 }
 
+// ── CatalogView ─────────────────────────────────────────────────────────────
 function CatalogView({ equipment, users, onBack }) {
   const [query, setQuery] = useState('');
   const filtered = equipment.filter(e => !query || e.name.toLowerCase().includes(query.toLowerCase()) || e.code.toLowerCase().includes(query.toLowerCase()));
@@ -838,8 +786,7 @@ function CatalogView({ equipment, users, onBack }) {
       <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
         {filtered.map(item => {
           const isWarehouse = item.location==='warehouse';
-          const isAssigned = !!item.assigned_to;
-          const assignedUser = isAssigned ? users.find(u=>u.id===item.assigned_to) : null;
+          const assignedUser = item.assigned_to ? users.find(u=>u.id===item.assigned_to) : null;
           return (
             <div key={item.id} className="card" style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:12 }}>
               <span style={{ fontSize:24 }}>{CATEGORIES[item.cat]?.icon||'📦'}</span>
@@ -848,7 +795,7 @@ function CatalogView({ equipment, users, onBack }) {
                 <div style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'#888', marginTop:3 }}>{item.code}</div>
               </div>
               <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:3 }}>
-                {isAssigned && <div style={{ padding:'2px 7px', borderRadius:5, fontSize:10, fontWeight:600, background:'#1a1a2a', color:'#818CF8', border:'1px solid #818CF833', whiteSpace:'nowrap' }}>📌 {assignedUser?.name||'Przypisany'}</div>}
+                {assignedUser && <div style={{ padding:'2px 7px', borderRadius:5, fontSize:10, fontWeight:600, background:'#1a1a2a', color:'#818CF8', border:'1px solid #818CF833', whiteSpace:'nowrap' }}>📌 {assignedUser.name}</div>}
                 <div style={{ padding:'3px 9px', borderRadius:6, fontSize:11, fontWeight:600, background:isWarehouse?'#1a2a1a':'#2a2a1a', color:isWarehouse?'#22C55E':'#FBB724', border:`1px solid ${isWarehouse?'#22C55E33':'#FBB72433'}`, whiteSpace:'nowrap' }}>{getLocationLabel(item.location, users)}</div>
               </div>
             </div>
@@ -859,6 +806,7 @@ function CatalogView({ equipment, users, onBack }) {
   );
 }
 
+// ── HistoryView ─────────────────────────────────────────────────────────────
 function HistoryView({ history, users, onBack }) {
   const [filterUser, setFilterUser] = useState('all');
   const [filterType, setFilterType] = useState('all');
@@ -891,11 +839,11 @@ function HistoryView({ history, users, onBack }) {
         <div style={{ color:'#555', textAlign:'center', padding:60, fontSize:14 }}>📋<br/><br/>Brak operacji</div>
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-          {displayed.map((tx,idx) => {
+          {displayed.map((tx) => {
             const user = users.find(u=>u.id===tx.userId);
             const isCheckout = tx.mode==='checkout';
             return (
-              <div key={idx} className="card" style={{ padding:'12px 14px' }}>
+              <div key={tx.dbId||tx.time} className="card" style={{ padding:'12px 14px' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
                   <div style={{ width:32, height:32, borderRadius:8, background:isCheckout?'#2a2210':'#1a2a1a', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>{isCheckout?'📤':'📥'}</div>
                   <div style={{ flex:1 }}>
@@ -922,29 +870,7 @@ function HistoryView({ history, users, onBack }) {
   );
 }
 
-function PrintCodesView({ equipment, onBack }) {
-  return (
-    <div className="print-page" style={{ padding:'20px', minHeight:'100vh', background:'#fff', color:'#000' }}>
-      <div className="no-print" style={{ marginBottom:20, maxWidth:800, margin:'0 auto 20px', display:'flex', alignItems:'center', gap:12 }}>
-        <button className="btn-ghost" onClick={onBack} style={{ padding:'8px 12px', color:'#666', borderColor:'#ccc' }}>← Powrót</button>
-        <div style={{ flex:1, color:'#222', fontWeight:700, fontSize:18 }}>🖨️ Naklejki do druku ({equipment.length} szt.)</div>
-        <button onClick={()=>window.print()} style={{ background:'#FBB724', color:'#000', border:'none', padding:'10px 18px', borderRadius:8, fontWeight:700, cursor:'pointer', fontSize:14 }}>🖨️ Drukuj</button>
-      </div>
-      <div style={{ maxWidth:800, margin:'0 auto', display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'10px' }}>
-        {equipment.map(item => (
-          <div key={item.id} className="qr-print-item" style={{ border:'2px solid #ddd', borderRadius:8, padding:'12px 8px', textAlign:'center', background:'#fff', breakInside:'avoid' }}>
-            <div style={{ background:'#fff', padding:'4px', display:'inline-block' }}>
-              <QRCodeSVG value={item.code} size={110} level="M" />
-            </div>
-            <div style={{ fontFamily:'monospace', fontWeight:'bold', fontSize:14, marginTop:8, color:'#000' }}>{item.code}</div>
-            <div style={{ fontSize:10, color:'#666', marginTop:3, maxWidth:140, margin:'3px auto 0', lineHeight:1.3 }}>{item.name}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
+// ── App Root ────────────────────────────────────────────────────────────────
 export default function App() {
   const [equipment,   setEquipment]   = useState([]);
   const [history,     setHistory]     = useState([]);
@@ -955,9 +881,11 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [view,        setView]        = useState('login');
   const [scanMode,    setScanMode]    = useState(null);
+  const [adminFrom,   setAdminFrom]   = useState('login'); // FIX #4
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true); setDbError(false);
+  // FIX #1: silent=true skips loading spinner (used for background refresh)
+  const fetchAll = useCallback(async (silent = false) => {
+    if (!silent) { setLoading(true); setDbError(false); }
     try {
       const [eqRes, usersRes, histRes] = await Promise.all([
         supabase.from('equipment').select('*'),
@@ -970,8 +898,8 @@ export default function App() {
       setEquipment(eqRes.data||[]);
       setUsers(usersRes.data||[]);
       setHistory((histRes.data||[]).map(h => ({ dbId:h.id, mode:h.mode, userId:h.user_id, items:h.items, time:h.time })));
-    } catch(e) { console.error('DB error:', e); setDbError(true); }
-    setLoading(false);
+    } catch(e) { console.error('DB error:', e); if (!silent) setDbError(true); }
+    if (!silent) setLoading(false);
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -996,18 +924,29 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  // FIX #1: silent refresh on visibility change — no spinner
   useEffect(() => {
-    const handleVisibility = () => { if (document.visibilityState==='visible') fetchAll(); };
+    const handleVisibility = () => { if (document.visibilityState==='visible') fetchAll(true); };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [fetchAll]);
 
+  // FIX #2: move equipment to warehouse when deleting user
   const handleSaveUsers = async (newUsers) => {
-    const added = newUsers.filter(u => !users.find(o=>o.id===u.id));
+    const added   = newUsers.filter(u => !users.find(o=>o.id===u.id));
     const deleted = users.filter(u => !newUsers.find(n=>n.id===u.id));
     setUsers(newUsers);
     if (added.length) await supabase.from('users').insert(added);
-    if (deleted.length) await Promise.all(deleted.map(u => supabase.from('users').delete().eq('id', u.id)));
+    if (deleted.length) {
+      for (const u of deleted) {
+        setEquipment(prev => prev.map(e =>
+          (e.location===u.id || e.assigned_to===u.id) ? {...e, location:'warehouse', assigned_to:null} : e
+        ));
+        await supabase.from('equipment').update({ location:'warehouse', assigned_to:null }).eq('location', u.id);
+        await supabase.from('equipment').update({ assigned_to:null }).eq('assigned_to', u.id);
+        await supabase.from('users').delete().eq('id', u.id);
+      }
+    }
   };
 
   const handleUpdateUser = async (updatedUser) => {
@@ -1016,7 +955,7 @@ export default function App() {
   };
 
   const handleSaveEquipment = async (newEquipment) => {
-    const added = newEquipment.filter(e => !equipment.find(o=>o.id===e.id));
+    const added   = newEquipment.filter(e => !equipment.find(o=>o.id===e.id));
     const deleted = equipment.filter(e => !newEquipment.find(n=>n.id===e.id));
     setEquipment(newEquipment);
     if (added.length) await supabase.from('equipment').insert(added);
@@ -1030,8 +969,8 @@ export default function App() {
 
   const handleAssign = async (itemId, userId) => {
     const newLocation = userId || 'warehouse';
-    setEquipment(prev => prev.map(e => e.id===itemId ? { ...e, assigned_to: userId||null, location: newLocation } : e));
-    await supabase.from('equipment').update({ assigned_to: userId||null, location: newLocation }).eq('id', itemId);
+    setEquipment(prev => prev.map(e => e.id===itemId ? { ...e, assigned_to:userId||null, location:newLocation } : e));
+    await supabase.from('equipment').update({ assigned_to:userId||null, location:newLocation }).eq('id', itemId);
   };
 
   const handleConfirm = async ({ mode, cart }) => {
@@ -1044,24 +983,26 @@ export default function App() {
   };
 
   const handleReset = async () => {
-    if (!confirm('Czy na pewno zresetować WSZYSTKIE dane?\n\nUsuwa cały sprzęt, użytkowników i historię.')) return;
+    if (!confirm('Czy na pewno zresetować WSZYSTKIE dane?')) return;
     await Promise.all([supabase.from('history').delete().neq('id',0), supabase.from('equipment').delete().neq('id',''), supabase.from('users').delete().neq('id','')]);
     setEquipment([]); setHistory([]); setUsers([]);
   };
 
   const handleLoginWithCredentials = async (login, password) => {
-    const user = users.find(u => u.login === login && u.password === password);
+    const user = users.find(u => u.login===login && u.password===password);
     if (user) { setCurrentUser(user); setView('home'); return true; }
     return false;
   };
 
-  const handleLogin = (user) => { setCurrentUser(user); setView('home'); };
+  const handleLogin  = (user) => { setCurrentUser(user); setView('home'); };
   const handleLogout = () => { setCurrentUser(null); setView('login'); };
+
+  // FIX #4: track where admin was opened from
   const handleAction = (action) => {
     if (action==='checkout'||action==='return') { setScanMode(action); setView('scan'); }
+    else if (action==='admin') { setAdminFrom('home'); setView('admin'); }
     else setView(action);
   };
-  // admin view also accessible from HomeView for admin users (no password needed)
 
   if (loading) return (
     <div style={{ background:'#0A0A0A', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16 }}>
@@ -1079,8 +1020,8 @@ export default function App() {
       <style>{STYLES}</style>
       <div style={{ fontSize:48 }}>⚠️</div>
       <div style={{ color:'#fff', fontWeight:700, fontSize:20 }}>Błąd połączenia</div>
-      <div style={{ color:'#888', fontSize:14, textAlign:'center' }}>Nie można połączyć się z bazą danych.</div>
-      <button className="btn-primary" onClick={fetchAll} style={{ maxWidth:240 }}>🔄 Spróbuj ponownie</button>
+      <div style={{ color:'#888', fontSize:14, textAlign:'center' }}>Sprawdź połączenie z internetem.</div>
+      <button className="btn-primary" onClick={()=>fetchAll()} style={{ maxWidth:240 }}>🔄 Spróbuj ponownie</button>
     </div>
   );
 
@@ -1088,13 +1029,12 @@ export default function App() {
     <div style={{ background:'#0A0A0A', minHeight:'100vh', color:'#fff', fontFamily:'Barlow,sans-serif' }}>
       <style>{STYLES}</style>
       {view==='login' && <LoginView onLoginWithCredentials={handleLoginWithCredentials} onAdmin={()=>setView('admin-login')} />}
-      {view==='admin-login' && <AdminLoginView adminPassword={adminPassword} onLogin={()=>setView('admin')} onBack={()=>setView('login')} />}
-      {view==='admin' && <AdminView users={users} equipment={equipment} onSaveUsers={handleSaveUsers} onSaveEquipment={handleSaveEquipment} onAssign={handleAssign} onUpdateUser={handleUpdateUser} onUpdateEquipment={handleUpdateEquipment} onBack={()=>setView('login')} />}
+      {view==='admin-login' && <AdminLoginView adminPassword={adminPassword} onLogin={()=>{ setAdminFrom('login'); setView('admin'); }} onBack={()=>setView('login')} />}
+      {view==='admin' && <AdminView users={users} equipment={equipment} onSaveUsers={handleSaveUsers} onSaveEquipment={handleSaveEquipment} onAssign={handleAssign} onUpdateUser={handleUpdateUser} onUpdateEquipment={handleUpdateEquipment} onBack={()=>setView(adminFrom)} />}
       {view==='home' && currentUser && <HomeView user={currentUser} equipment={equipment} history={history} onAction={handleAction} onLogout={handleLogout} onAssign={handleAssign} />}
       {view==='scan' && currentUser && <ScanView user={currentUser} equipment={equipment} users={users} mode={scanMode} onConfirm={handleConfirm} onBack={()=>setView('home')} />}
       {view==='catalog' && <CatalogView equipment={equipment} users={users} onBack={()=>setView('home')} />}
       {view==='history' && <HistoryView history={history} users={users} onBack={()=>setView('home')} />}
-      {view==='print' && <PrintCodesView equipment={equipment} onBack={()=>setView('login')} />}
     </div>
   );
 }
