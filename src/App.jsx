@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Scanner } from '@yudiel/react-qr-scanner';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -81,19 +80,69 @@ function Avatar({ user, size = 40 }) {
 }
 
 function QRScannerModal({ onScan, onClose, scannedCount }) {
-  const [recentCodes, setRecentCodes] = useState([]);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const animRef = useRef(null);
   const [lastFeedback, setLastFeedback] = useState(null);
-  const handleDetected = (results) => {
-    if (!results?.length) return;
-    const code = results[0].rawValue?.toUpperCase().trim();
-    if (!code || recentCodes.includes(code)) return;
-    setRecentCodes(prev => [...prev, code]);
-    setTimeout(() => setRecentCodes(prev => prev.filter(c => c !== code)), 2000);
-    if (navigator.vibrate) navigator.vibrate(80);
-    const result = onScan(code);
-    setLastFeedback({ code, ok: result.ok, msg: result.msg });
-    setTimeout(() => setLastFeedback(null), 2500);
-  };
+  const recentCodesRef = useRef(new Set());
+
+  useEffect(() => {
+    let mounted = true;
+
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        if (!mounted) { stream.getTracks().forEach(t => t.stop()); return; }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+        scanLoop();
+      } catch(err) { console.error('Camera error:', err); }
+    };
+
+    const scanLoop = () => {
+      if (!mounted || !videoRef.current) return;
+      const video = videoRef.current;
+      if (video.readyState >= 2 && window.BarcodeDetector) {
+        const detector = new window.BarcodeDetector({ formats: ['code_128','code_39','ean_13','ean_8','upc_a','upc_e','itf','codabar','qr_code','data_matrix'] });
+        const detect = async () => {
+          if (!mounted) return;
+          try {
+            const barcodes = await detector.detect(video);
+            for (const barcode of barcodes) {
+              const code = barcode.rawValue.toUpperCase().trim();
+              if (!code || recentCodesRef.current.has(code)) continue;
+              recentCodesRef.current.add(code);
+              setTimeout(() => recentCodesRef.current.delete(code), 2000);
+              if (navigator.vibrate) navigator.vibrate(80);
+              const result = onScan(code);
+              if (mounted) {
+                setLastFeedback({ code, ok: result.ok, msg: result.msg });
+                setTimeout(() => { if (mounted) setLastFeedback(null); }, 2500);
+              }
+            }
+          } catch(e) {}
+          if (mounted) animRef.current = requestAnimationFrame(detect);
+        };
+        animRef.current = requestAnimationFrame(detect);
+      } else {
+        // Fallback: retry until video ready or BarcodeDetector available
+        animRef.current = setTimeout(scanLoop, 500);
+      }
+    };
+
+    startCamera();
+    return () => {
+      mounted = false;
+      if (animRef.current) { cancelAnimationFrame(animRef.current); clearTimeout(animRef.current); }
+      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+    };
+  }, []);
+
   return (
     <div className="scanner-overlay">
       <div style={{ padding:'16px 20px', background:'#0C0C0C', borderBottom:'1px solid #222', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
@@ -104,12 +153,7 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
         <button className="btn-primary" onClick={onClose} style={{ width:'auto', padding:'10px 20px', fontSize:14 }}>✓ Gotowe</button>
       </div>
       <div style={{ flex:1, position:'relative', background:'#000', overflow:'hidden' }}>
-        <Scanner onScan={handleDetected} onError={err => console.error(err)}
-          constraints={{ facingMode:'environment', width:{ideal:640}, height:{ideal:480} }}
-          scanDelay={80}
-          formats={['code_128','code_39','ean_13','ean_8','upc_a','upc_e','codabar','itf','qr_code','data_matrix']}
-          styles={{ container:{width:'100%',height:'100%'}, video:{width:'100%',height:'100%',objectFit:'cover'} }}
-        />
+        <video ref={videoRef} style={{ width:'100%', height:'100%', objectFit:'cover' }} muted playsInline autoPlay />
         <div style={{ position:'absolute', inset:0, pointerEvents:'none', display:'flex', alignItems:'center', justifyContent:'center' }}>
           <div style={{ width:'85%', maxWidth:340, height:120, border:'3px solid #FBB724', borderRadius:12, boxShadow:'0 0 0 9999px rgba(0,0,0,0.5)', position:'relative' }}>
             {[{top:0,left:0},{top:0,right:0},{bottom:0,left:0},{bottom:0,right:0}].map((pos,i) => (
