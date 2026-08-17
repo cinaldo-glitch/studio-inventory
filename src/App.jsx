@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Scanner } from '@yudiel/react-qr-scanner';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -81,19 +80,69 @@ function Avatar({ user, size = 40 }) {
 }
 
 function QRScannerModal({ onScan, onClose, scannedCount }) {
-  const [recentCodes, setRecentCodes] = useState([]);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const animRef = useRef(null);
   const [lastFeedback, setLastFeedback] = useState(null);
-  const handleDetected = (results) => {
-    if (!results?.length) return;
-    const code = results[0].rawValue?.toUpperCase().trim();
-    if (!code || recentCodes.includes(code)) return;
-    setRecentCodes(prev => [...prev, code]);
-    setTimeout(() => setRecentCodes(prev => prev.filter(c => c !== code)), 2000);
-    if (navigator.vibrate) navigator.vibrate(80);
-    const result = onScan(code);
-    setLastFeedback({ code, ok: result.ok, msg: result.msg });
-    setTimeout(() => setLastFeedback(null), 2500);
-  };
+  const recentCodesRef = useRef(new Set());
+
+  useEffect(() => {
+    let mounted = true;
+
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        if (!mounted) { stream.getTracks().forEach(t => t.stop()); return; }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+        scanLoop();
+      } catch(err) { console.error('Camera error:', err); }
+    };
+
+    const scanLoop = () => {
+      if (!mounted || !videoRef.current) return;
+      const video = videoRef.current;
+      if (video.readyState >= 2 && window.BarcodeDetector) {
+        const detector = new window.BarcodeDetector({ formats: ['code_128','code_39','ean_13','ean_8','upc_a','upc_e','itf','codabar','qr_code','data_matrix'] });
+        const detect = async () => {
+          if (!mounted) return;
+          try {
+            const barcodes = await detector.detect(video);
+            for (const barcode of barcodes) {
+              const code = barcode.rawValue.toUpperCase().trim();
+              if (!code || recentCodesRef.current.has(code)) continue;
+              recentCodesRef.current.add(code);
+              setTimeout(() => recentCodesRef.current.delete(code), 2000);
+              if (navigator.vibrate) navigator.vibrate(80);
+              const result = onScan(code);
+              if (mounted) {
+                setLastFeedback({ code, ok: result.ok, msg: result.msg });
+                setTimeout(() => { if (mounted) setLastFeedback(null); }, 2500);
+              }
+            }
+          } catch(e) {}
+          if (mounted) animRef.current = requestAnimationFrame(detect);
+        };
+        animRef.current = requestAnimationFrame(detect);
+      } else {
+        // Fallback: retry until video ready or BarcodeDetector available
+        animRef.current = setTimeout(scanLoop, 500);
+      }
+    };
+
+    startCamera();
+    return () => {
+      mounted = false;
+      if (animRef.current) { cancelAnimationFrame(animRef.current); clearTimeout(animRef.current); }
+      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+    };
+  }, []);
+
   return (
     <div className="scanner-overlay">
       <div style={{ padding:'16px 20px', background:'#0C0C0C', borderBottom:'1px solid #222', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
@@ -104,12 +153,7 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
         <button className="btn-primary" onClick={onClose} style={{ width:'auto', padding:'10px 20px', fontSize:14 }}>✓ Gotowe</button>
       </div>
       <div style={{ flex:1, position:'relative', background:'#000', overflow:'hidden' }}>
-        <Scanner onScan={handleDetected} onError={err => console.error(err)}
-          constraints={{ facingMode:'environment', width:{ideal:640}, height:{ideal:480} }}
-          scanDelay={80}
-          formats={['code_128','code_39','ean_13','ean_8','upc_a','upc_e','codabar','itf','qr_code','data_matrix']}
-          styles={{ container:{width:'100%',height:'100%'}, video:{width:'100%',height:'100%',objectFit:'cover'} }}
-        />
+        <video ref={videoRef} style={{ width:'100%', height:'100%', objectFit:'cover' }} muted playsInline autoPlay />
         <div style={{ position:'absolute', inset:0, pointerEvents:'none', display:'flex', alignItems:'center', justifyContent:'center' }}>
           <div style={{ width:'85%', maxWidth:340, height:120, border:'3px solid #FBB724', borderRadius:12, boxShadow:'0 0 0 9999px rgba(0,0,0,0.5)', position:'relative' }}>
             {[{top:0,left:0},{top:0,right:0},{bottom:0,left:0},{bottom:0,right:0}].map((pos,i) => (
@@ -496,7 +540,7 @@ function StatusTab({ users, equipment }) {
 }
 
 // ── AdminView ───────────────────────────────────────────────────────────────
-function AdminView({ users, equipment, onSaveUsers, onSaveEquipment, onAssign, onUpdateUser, onUpdateEquipment, onBack }) {
+function AdminView({ users, equipment, feedbackList, onSaveUsers, onSaveEquipment, onAssign, onUpdateUser, onUpdateEquipment, onMarkDone, onBack }) {
   const [tab, setTab] = useState('status');
   return (
     <div className="fade-in" style={{ padding:'16px 20px 40px', maxWidth:480, margin:'0 auto' }}>
@@ -508,13 +552,14 @@ function AdminView({ users, equipment, onSaveUsers, onSaveEquipment, onAssign, o
         </div>
       </div>
       <div style={{ display:'flex', gap:3, marginBottom:20, background:'#141414', borderRadius:10, padding:4, border:'1px solid #202020' }}>
-        {[{key:'status',label:'📊 Stan'},{key:'users',label:'👤 Użytkownicy'},{key:'equipment',label:'📦 Sprzęt'}].map(t => (
+        {[{key:'status',label:'📊 Stan'},{key:'users',label:'👤 Użytkownicy'},{key:'equipment',label:'📦 Sprzęt'},{key:'feedback',label:'📝 Zgłoszenia'}].map(t => (
           <button key={t.key} onClick={()=>setTab(t.key)} style={{ flex:1, padding:'9px 4px', borderRadius:7, border:'none', cursor:'pointer', fontFamily:'Barlow,sans-serif', fontWeight:600, fontSize:12, background:tab===t.key?'#FBB724':'transparent', color:tab===t.key?'#0C0C0C':'#888', transition:'all .15s' }}>{t.label}</button>
         ))}
       </div>
       {tab==='status' && <StatusTab users={users} equipment={equipment} />}
       {tab==='users' && <UsersTab users={users} onSaveUsers={onSaveUsers} onUpdateUser={onUpdateUser} />}
       {tab==='equipment' && <EquipmentTab equipment={equipment} onSaveEquipment={onSaveEquipment} onUpdateEquipment={onUpdateEquipment} />}
+      {tab==='feedback' && <FeedbackAdminTab feedbackList={feedbackList} onMarkDone={onMarkDone} />}
     </div>
   );
 }
@@ -649,6 +694,7 @@ function HomeView({ user, equipment, history, onAction, onLogout, onAssign }) {
           ...(myItems.length>0?[{action:'return', icon:'📥', label:'Zwróć do magazynu', sub:'Twój sprzęt wraca do magazynu'}]:[]),
           {action:'catalog', icon:'🔍', label:'Katalog sprzętu', sub:'Zobacz gdzie jest jaki sprzęt'},
           {action:'history', icon:'📋', label:'Historia operacji', sub:`${history.length} ${history.length===1?'operacja':'operacji'}`},
+          {action:'feedback', icon:'📝', label:'Zgłoś problem', sub:'Błędy i sugestie trafiają do admina'},
           ...(user.is_admin?[{action:'admin', icon:'🔧', label:'Panel Admina', sub:'Zarządzaj sprzętem i użytkownikami'}]:[]),
         ].map(({action,icon,label,sub}) => (
           <button key={action} className="action-tile" onClick={()=>onAction(action)}>
@@ -870,6 +916,126 @@ function HistoryView({ history, users, onBack }) {
   );
 }
 
+
+// ── FeedbackView — formularz zgłoszenia ─────────────────────────────────────
+function FeedbackView({ user, onBack, onSubmit }) {
+  const [category, setCategory] = useState('blad');
+  const [description, setDescription] = useState('');
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const categories = [
+    { value:'blad',      label:'🔴 Błąd w aplikacji' },
+    { value:'skaner',    label:'📷 Problem ze skanerem' },
+    { value:'sprzet',    label:'📦 Brakujący sprzęt w systemie' },
+    { value:'sugestia',  label:'💡 Sugestia / pomysł' },
+    { value:'inne',      label:'📝 Inne' },
+  ];
+
+  const handleSubmit = async () => {
+    if (!description.trim()) return;
+    setSending(true);
+    await onSubmit({ userId: user.id, userName: user.name, category, description: description.trim() });
+    setSent(true);
+    setSending(false);
+  };
+
+  if (sent) return (
+    <div className="fade-in" style={{ padding:24, maxWidth:480, margin:'0 auto', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16 }}>
+      <div style={{ width:72, height:72, borderRadius:36, background:'#1a2a1a', border:'2px solid #22C55E', display:'flex', alignItems:'center', justifyContent:'center', fontSize:34 }}>✅</div>
+      <div style={{ color:'#fff', fontWeight:800, fontSize:22 }}>Dziękujemy!</div>
+      <div style={{ color:'#888', fontSize:14, textAlign:'center' }}>Twoje zgłoszenie zostało wysłane. Zajmiemy się nim wkrótce.</div>
+      <button className="btn-primary" onClick={onBack} style={{ marginTop:8 }}>← Powrót do menu</button>
+    </div>
+  );
+
+  return (
+    <div className="fade-in" style={{ padding:'16px 20px 40px', maxWidth:480, margin:'0 auto' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:24 }}>
+        <button className="btn-ghost" onClick={onBack} style={{ padding:'8px 12px' }}>←</button>
+        <div>
+          <div style={{ color:'#fff', fontWeight:700, fontSize:17 }}>Zgłoś problem</div>
+          <div style={{ color:'#888', fontSize:12, marginTop:1 }}>Błędy i sugestie trafiają bezpośrednio do admina</div>
+        </div>
+      </div>
+
+      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+        <div>
+          <div style={{ color:'#888', fontSize:12, marginBottom:8 }}>Kategoria</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {categories.map(c => (
+              <div key={c.value} onClick={() => setCategory(c.value)} style={{ padding:'11px 14px', borderRadius:10, border:`1.5px solid ${category===c.value?'#FBB724':'#252525'}`, background:category===c.value?'#FBB72411':'#141414', cursor:'pointer', color:category===c.value?'#FBB724':'#aaa', fontSize:14, fontWeight:category===c.value?600:400, transition:'all .15s' }}>
+                {c.label}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ color:'#888', fontSize:12, marginBottom:8 }}>Opis *</div>
+          <textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="Opisz dokładnie co się wydarzyło lub co chciałbyś zmienić..."
+            style={{ width:'100%', minHeight:140, background:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:10, padding:14, color:'#ddd', fontFamily:'Barlow,sans-serif', fontSize:14, outline:'none', resize:'vertical', lineHeight:1.6 }}
+          />
+        </div>
+
+        <button className="btn-primary" onClick={handleSubmit} disabled={!description.trim() || sending}>
+          {sending ? 'Wysyłanie...' : '📤 Wyślij zgłoszenie'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── FeedbackAdminTab — widok zgłoszeń w panelu admina ───────────────────────
+function FeedbackAdminTab({ feedbackList, onMarkDone }) {
+  const [filter, setFilter] = useState('new');
+
+  const categoryLabels = {
+    blad:'🔴 Błąd', skaner:'📷 Skaner', sprzet:'📦 Sprzęt', sugestia:'💡 Sugestia', inne:'📝 Inne'
+  };
+
+  const filtered = feedbackList.filter(f => filter === 'all' || f.status === filter);
+
+  const newCount = feedbackList.filter(f => f.status === 'new').length;
+
+  return (
+    <div>
+      <div style={{ display:'flex', gap:6, marginBottom:16 }}>
+        {[{key:'new', label:`Nowe (${newCount})`}, {key:'done', label:'Zamknięte'}, {key:'all', label:'Wszystkie'}].map(t => (
+          <button key={t.key} onClick={() => setFilter(t.key)} style={{ flex:1, padding:'8px 4px', borderRadius:8, border:`1px solid ${filter===t.key?'#FBB724':'#252525'}`, background:filter===t.key?'#FBB72411':'transparent', color:filter===t.key?'#FBB724':'#888', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'Barlow,sans-serif' }}>{t.label}</button>
+        ))}
+      </div>
+
+      {filtered.length === 0 && (
+        <div style={{ color:'#555', textAlign:'center', padding:40, fontSize:14 }}>Brak zgłoszeń</div>
+      )}
+
+      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+        {filtered.map(f => (
+          <div key={f.id} className="card" style={{ padding:'12px 14px', borderColor: f.status==='new'?'#FBB72433':'#202020' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ color:'#FBB724', fontSize:11, fontWeight:700 }}>{categoryLabels[f.category]||f.category}</div>
+                <div style={{ color:'#888', fontSize:12, marginTop:2 }}>{f.user_name} · {new Date(f.created_at).toLocaleDateString('pl-PL', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})}</div>
+              </div>
+              {f.status === 'new' && (
+                <button onClick={() => onMarkDone(f.id)} style={{ background:'#1a2a1a', border:'1px solid #22C55E44', borderRadius:6, padding:'5px 10px', color:'#22C55E', fontSize:11, cursor:'pointer', fontFamily:'Barlow,sans-serif', flexShrink:0 }}>✓ Zamknij</button>
+              )}
+              {f.status === 'done' && (
+                <div style={{ color:'#444', fontSize:11 }}>Zamknięte</div>
+              )}
+            </div>
+            <div style={{ color:'#ccc', fontSize:13, lineHeight:1.5, paddingTop:8, borderTop:'1px solid #1a1a1a' }}>{f.description}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── App Root ────────────────────────────────────────────────────────────────
 export default function App() {
   const [equipment,   setEquipment]   = useState([]);
@@ -882,15 +1048,17 @@ export default function App() {
   const [view,        setView]        = useState('login');
   const [scanMode,    setScanMode]    = useState(null);
   const [adminFrom,   setAdminFrom]   = useState('login'); // FIX #4
+  const [feedbackList, setFeedbackList] = useState([]);
 
   // FIX #1: silent=true skips loading spinner (used for background refresh)
   const fetchAll = useCallback(async (silent = false) => {
     if (!silent) { setLoading(true); setDbError(false); }
     try {
-      const [eqRes, usersRes, histRes] = await Promise.all([
+      const [eqRes, usersRes, histRes, fbRes] = await Promise.all([
         supabase.from('equipment').select('*'),
         supabase.from('users').select('*'),
         supabase.from('history').select('*').order('id', { ascending:true }),
+        supabase.from('feedback').select('*').order('id', { ascending:false }),
       ]);
       if (eqRes.error) throw eqRes.error;
       if (usersRes.error) throw usersRes.error;
@@ -898,6 +1066,7 @@ export default function App() {
       setEquipment(eqRes.data||[]);
       setUsers(usersRes.data||[]);
       setHistory((histRes.data||[]).map(h => ({ dbId:h.id, mode:h.mode, userId:h.user_id, items:h.items, time:h.time })));
+      setFeedbackList(fbRes.data||[]);
     } catch(e) { console.error('DB error:', e); if (!silent) setDbError(true); }
     if (!silent) setLoading(false);
   }, []);
@@ -982,6 +1151,16 @@ export default function App() {
     ]);
   };
 
+  const handleSubmitFeedback = async ({ userId, userName, category, description }) => {
+    const { data } = await supabase.from('feedback').insert({ user_id:userId, user_name:userName, category, description, status:'new' }).select().single();
+    if (data) setFeedbackList(prev => [data, ...prev]);
+  };
+
+  const handleMarkDone = async (feedbackId) => {
+    await supabase.from('feedback').update({ status:'done' }).eq('id', feedbackId);
+    setFeedbackList(prev => prev.map(f => f.id===feedbackId ? {...f, status:'done'} : f));
+  };
+
   const handleReset = async () => {
     if (!confirm('Czy na pewno zresetować WSZYSTKIE dane?')) return;
     await Promise.all([supabase.from('history').delete().neq('id',0), supabase.from('equipment').delete().neq('id',''), supabase.from('users').delete().neq('id','')]);
@@ -1001,6 +1180,7 @@ export default function App() {
   const handleAction = (action) => {
     if (action==='checkout'||action==='return') { setScanMode(action); setView('scan'); }
     else if (action==='admin') { setAdminFrom('home'); setView('admin'); }
+    else if (action==='feedback') setView('feedback');
     else setView(action);
   };
 
@@ -1030,11 +1210,12 @@ export default function App() {
       <style>{STYLES}</style>
       {view==='login' && <LoginView onLoginWithCredentials={handleLoginWithCredentials} onAdmin={()=>setView('admin-login')} />}
       {view==='admin-login' && <AdminLoginView adminPassword={adminPassword} onLogin={()=>{ setAdminFrom('login'); setView('admin'); }} onBack={()=>setView('login')} />}
-      {view==='admin' && <AdminView users={users} equipment={equipment} onSaveUsers={handleSaveUsers} onSaveEquipment={handleSaveEquipment} onAssign={handleAssign} onUpdateUser={handleUpdateUser} onUpdateEquipment={handleUpdateEquipment} onBack={()=>setView(adminFrom)} />}
+      {view==='admin' && <AdminView users={users} equipment={equipment} feedbackList={feedbackList} onSaveUsers={handleSaveUsers} onSaveEquipment={handleSaveEquipment} onAssign={handleAssign} onUpdateUser={handleUpdateUser} onUpdateEquipment={handleUpdateEquipment} onMarkDone={handleMarkDone} onBack={()=>setView(adminFrom)} />}
       {view==='home' && currentUser && <HomeView user={currentUser} equipment={equipment} history={history} onAction={handleAction} onLogout={handleLogout} onAssign={handleAssign} />}
       {view==='scan' && currentUser && <ScanView user={currentUser} equipment={equipment} users={users} mode={scanMode} onConfirm={handleConfirm} onBack={()=>setView('home')} />}
       {view==='catalog' && <CatalogView equipment={equipment} users={users} onBack={()=>setView('home')} />}
       {view==='history' && <HistoryView history={history} users={users} onBack={()=>setView('home')} />}
+      {view==='feedback' && currentUser && <FeedbackView user={currentUser} onBack={()=>setView('home')} onSubmit={handleSubmitFeedback} />}
     </div>
   );
 }
