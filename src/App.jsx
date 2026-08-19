@@ -183,7 +183,7 @@ function AdminLoginView({ adminPassword, onLogin, onBack }) {
         <button className="btn-ghost" onClick={onBack} style={{ textAlign:'center' }}>← Powrót</button>
       </div>
       <div style={{ marginTop:24, padding:14, background:'#141414', borderRadius:10, border:'1px solid #202020', color:'#666', fontSize:12, textAlign:'center' }}>
-        Domyślne hasło: <span style={{ fontFamily:'DM Mono,monospace', color:'#aaa' }}>admin1</span>
+        Zapomniałeś hasła? Zaloguj się na swoje własne konto (jeśli masz uprawnienia administratora) i wejdź w „🔧 Panel Admina” z menu głównego — tam, w zakładce „⚙️ Ustawienia”, możesz podejrzeć i zmienić to hasło.
       </div>
     </div>
   );
@@ -532,7 +532,7 @@ function StatusTab({ users, equipment }) {
 }
 
 // ── AdminView ───────────────────────────────────────────────────────────────
-function AdminView({ users, equipment, feedbackList, onSaveUsers, onSaveEquipment, onAssign, onUpdateUser, onUpdateEquipment, onMarkDone, onBack }) {
+function AdminView({ users, equipment, feedbackList, adminPassword, onSaveUsers, onSaveEquipment, onAssign, onUpdateUser, onUpdateEquipment, onMarkDone, onChangeAdminPassword, onBack }) {
   const [tab, setTab] = useState('status');
   return (
     <div className="fade-in" style={{ padding:'16px 20px 40px', maxWidth:480, margin:'0 auto' }}>
@@ -544,7 +544,7 @@ function AdminView({ users, equipment, feedbackList, onSaveUsers, onSaveEquipmen
         </div>
       </div>
       <div style={{ display:'flex', gap:3, marginBottom:20, background:'#141414', borderRadius:10, padding:4, border:'1px solid #202020' }}>
-        {[{key:'status',label:'📊 Stan'},{key:'users',label:'👤 Użytkownicy'},{key:'equipment',label:'📦 Sprzęt'},{key:'feedback',label:'📝 Zgłoszenia'}].map(t => (
+        {[{key:'status',label:'📊 Stan'},{key:'users',label:'👤 Użytkownicy'},{key:'equipment',label:'📦 Sprzęt'},{key:'feedback',label:'📝 Zgłoszenia'},{key:'settings',label:'⚙️ Ustawienia'}].map(t => (
           <button key={t.key} onClick={()=>setTab(t.key)} style={{ flex:1, padding:'9px 4px', borderRadius:7, border:'none', cursor:'pointer', fontFamily:'Barlow,sans-serif', fontWeight:600, fontSize:12, background:tab===t.key?'#FBB724':'transparent', color:tab===t.key?'#0C0C0C':'#888', transition:'all .15s' }}>{t.label}</button>
         ))}
       </div>
@@ -552,6 +552,7 @@ function AdminView({ users, equipment, feedbackList, onSaveUsers, onSaveEquipmen
       {tab==='users' && <UsersTab users={users} onSaveUsers={onSaveUsers} onUpdateUser={onUpdateUser} />}
       {tab==='equipment' && <EquipmentTab equipment={equipment} onSaveEquipment={onSaveEquipment} onUpdateEquipment={onUpdateEquipment} />}
       {tab==='feedback' && <FeedbackAdminTab feedbackList={feedbackList} onMarkDone={onMarkDone} />}
+      {tab==='settings' && <SettingsTab adminPassword={adminPassword} onChangeAdminPassword={onChangeAdminPassword} />}
     </div>
   );
 }
@@ -1028,6 +1029,50 @@ function FeedbackAdminTab({ feedbackList, onMarkDone }) {
   );
 }
 
+function SettingsTab({ adminPassword, onChangeAdminPassword }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = async () => {
+    if (!newPassword.trim()) return;
+    await onChangeAdminPassword(newPassword.trim());
+    setNewPassword('');
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  return (
+    <div>
+      <div className="card" style={{ padding:16, marginBottom:16 }}>
+        <div style={{ color:'#fff', fontWeight:700, fontSize:14, marginBottom:4 }}>Hasło Panelu Admina</div>
+        <div style={{ color:'#888', fontSize:12, marginBottom:14, lineHeight:1.5 }}>
+          To hasło otwiera „🔐 Panel Admina" bezpośrednio z ekranu logowania (bez logowania na konto użytkownika). Widoczne jest tylko tutaj, dla administratorów już zalogowanych na swoje konto.
+        </div>
+        <div style={{ background:'#0A0A0A', border:'1px solid #202020', borderRadius:8, padding:'10px 12px', color:'#FBB724', fontSize:15, fontWeight:700, letterSpacing:1, marginBottom:16 }}>
+          {adminPassword}
+        </div>
+        <div style={{ color:'#888', fontSize:12, fontWeight:600, marginBottom:6 }}>Zmień hasło</div>
+        <div style={{ display:'flex', gap:8 }}>
+          <input
+            className="admin-input"
+            type="text"
+            placeholder="Nowe hasło"
+            value={newPassword}
+            onChange={e => setNewPassword(e.target.value)}
+            onKeyDown={e => e.key==='Enter' && handleSave()}
+            style={{ flex:1, fontSize:14, padding:'10px 12px' }}
+          />
+          <button className="btn-primary" onClick={handleSave} disabled={!newPassword.trim()} style={{ padding:'10px 16px', flexShrink:0 }}>Zapisz</button>
+        </div>
+        {saved && <div style={{ color:'#22C55E', fontSize:12, marginTop:10 }}>✓ Hasło zostało zmienione</div>}
+      </div>
+      <div style={{ color:'#555', fontSize:12, lineHeight:1.6, padding:'0 4px' }}>
+        Jeśli zapomnisz tego hasła: zaloguj się na swoje własne konto (jeśli masz uprawnienia administratora — „🔧 Panel Admina" na ekranie głównym) i wróć do tej zakładki, żeby je zobaczyć lub zmienić.
+      </div>
+    </div>
+  );
+}
+
 // ── App Root ────────────────────────────────────────────────────────────────
 export default function App() {
   const [equipment,   setEquipment]   = useState([]);
@@ -1035,7 +1080,7 @@ export default function App() {
   const [users,       setUsers]       = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [dbError,     setDbError]     = useState(false);
-  const [adminPassword]               = useState(DEFAULT_ADMIN_PASSWORD);
+  const [adminPassword, setAdminPassword] = useState(DEFAULT_ADMIN_PASSWORD);
   const [currentUser, setCurrentUser] = useState(null);
   const [view,        setView]        = useState('login');
   const [scanMode,    setScanMode]    = useState(null);
@@ -1046,11 +1091,12 @@ export default function App() {
   const fetchAll = useCallback(async (silent = false) => {
     if (!silent) { setLoading(true); setDbError(false); }
     try {
-      const [eqRes, usersRes, histRes, fbRes] = await Promise.all([
+      const [eqRes, usersRes, histRes, fbRes, settingsRes] = await Promise.all([
         supabase.from('equipment').select('*'),
         supabase.from('users').select('*'),
         supabase.from('history').select('*').order('id', { ascending:true }),
         supabase.from('feedback').select('*').order('id', { ascending:false }),
+        supabase.from('settings').select('*').eq('key', 'admin_password').maybeSingle(),
       ]);
       if (eqRes.error) throw eqRes.error;
       if (usersRes.error) throw usersRes.error;
@@ -1059,6 +1105,10 @@ export default function App() {
       setUsers(usersRes.data||[]);
       setHistory((histRes.data||[]).map(h => ({ dbId:h.id, mode:h.mode, userId:h.user_id, items:h.items, time:h.time })));
       setFeedbackList(fbRes.data||[]);
+      // Tabela "settings" jest opcjonalna — jeśli nie istnieje (lub jest pusta), zostaje domyślne hasło z kodu.
+      if (settingsRes && !settingsRes.error && settingsRes.data && settingsRes.data.value) {
+        setAdminPassword(settingsRes.data.value);
+      }
     } catch(e) { console.error('DB error:', e); if (!silent) setDbError(true); }
     if (!silent) setLoading(false);
   }, []);
@@ -1153,6 +1203,11 @@ export default function App() {
     setFeedbackList(prev => prev.map(f => f.id===feedbackId ? {...f, status:'done'} : f));
   };
 
+  const handleChangeAdminPassword = async (newPassword) => {
+    await supabase.from('settings').upsert({ key:'admin_password', value:newPassword }, { onConflict:'key' });
+    setAdminPassword(newPassword);
+  };
+
   const handleReset = async () => {
     if (!confirm('Czy na pewno zresetować WSZYSTKIE dane?')) return;
     await Promise.all([supabase.from('history').delete().neq('id',0), supabase.from('equipment').delete().neq('id',''), supabase.from('users').delete().neq('id','')]);
@@ -1202,7 +1257,7 @@ export default function App() {
       <style>{STYLES}</style>
       {view==='login' && <LoginView onLoginWithCredentials={handleLoginWithCredentials} onAdmin={()=>setView('admin-login')} />}
       {view==='admin-login' && <AdminLoginView adminPassword={adminPassword} onLogin={()=>{ setAdminFrom('login'); setView('admin'); }} onBack={()=>setView('login')} />}
-      {view==='admin' && <AdminView users={users} equipment={equipment} feedbackList={feedbackList} onSaveUsers={handleSaveUsers} onSaveEquipment={handleSaveEquipment} onAssign={handleAssign} onUpdateUser={handleUpdateUser} onUpdateEquipment={handleUpdateEquipment} onMarkDone={handleMarkDone} onBack={()=>setView(adminFrom)} />}
+      {view==='admin' && <AdminView users={users} equipment={equipment} feedbackList={feedbackList} adminPassword={adminPassword} onSaveUsers={handleSaveUsers} onSaveEquipment={handleSaveEquipment} onAssign={handleAssign} onUpdateUser={handleUpdateUser} onUpdateEquipment={handleUpdateEquipment} onMarkDone={handleMarkDone} onChangeAdminPassword={handleChangeAdminPassword} onBack={()=>setView(adminFrom)} />}
       {view==='home' && currentUser && <HomeView user={currentUser} equipment={equipment} history={history} onAction={handleAction} onLogout={handleLogout} onAssign={handleAssign} />}
       {view==='scan' && currentUser && <ScanView user={currentUser} equipment={equipment} users={users} mode={scanMode} onConfirm={handleConfirm} onBack={()=>setView('home')} />}
       {view==='catalog' && <CatalogView equipment={equipment} users={users} onBack={()=>setView('home')} />}
