@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { createClient } from '@supabase/supabase-js';
+import { Scanner } from '@yudiel/react-qr-scanner';
 
 const SUPABASE_URL = 'https://luqsaqktiglquspuxrxx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1cXNhcWt0aWdscXVzcHV4cnh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMTQ5MzYsImV4cCI6MjA5NzY5MDkzNn0.WxE4wVBKlLMNrcGd6989_Vi0TQmGgEc-Ayz9m4ytmIQ';
@@ -79,69 +80,49 @@ function Avatar({ user, size = 40 }) {
   return <div style={{ width:size, height:size, borderRadius:size/2, background:user.color+'1A', border:`1.5px solid ${user.color}44`, display:'flex', alignItems:'center', justifyContent:'center', color:user.color, fontFamily:'DM Mono,monospace', fontWeight:500, fontSize:size*.34, flexShrink:0 }}>{user.initials}</div>;
 }
 
+const SCAN_FORMATS = ['code_128','code_39','ean_13','ean_8','upc_a','upc_e','itf','codabar','qr_code','data_matrix'];
+
+// Skaner oparty o @yudiel/react-qr-scanner: na Chrome/Android korzysta z natywnego BarcodeDetector,
+// a na Safari/iOS automatycznie przełącza się na wbudowany polyfill (biblioteka `barcode-detector`,
+// silnik ZXing-WASM) — bo natywnego BarcodeDetector w Safari NIE MA. Poprzednia wersja korzystała
+// wyłącznie z natywnego API, więc na iPhone w ogóle nie wykrywała kodów (pętla kręciła się w kółko
+// bez żadnego mechanizmu skanowania w tle).
 function QRScannerModal({ onScan, onClose, scannedCount }) {
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const animRef = useRef(null);
   const [lastFeedback, setLastFeedback] = useState(null);
-  const recentCodesRef = useRef(new Set());
+  const scannerRef = useRef(null);
 
+  // Android: część telefonów nie łapie ostrości z automatu przy bliskiej odległości od kodu
+  // (aparat zostaje "zablokowany" na ostrości ustawionej w momencie startu strumienia).
+  // Wymuszamy tryb ciągłego auto-focusu, jeśli aparat go wspiera — bezpiecznie ignorowane,
+  // gdy urządzenie tego nie obsługuje (np. iPhone, który i tak ostrzy poprawnie sam).
   useEffect(() => {
-    let mounted = true;
-
-    const startCamera = async () => {
+    let cancelled = false;
+    let retryTimer = null;
+    const forceContinuousFocus = () => {
+      if (cancelled) return;
+      const stream = scannerRef.current?.getStream?.();
+      const track = stream?.getVideoTracks?.()[0];
+      if (!track) { retryTimer = setTimeout(forceContinuousFocus, 300); return; }
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-        });
-        if (!mounted) { stream.getTracks().forEach(t => t.stop()); return; }
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
+        const caps = track.getCapabilities?.();
+        if (caps?.focusMode?.includes('continuous')) {
+          track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
         }
-        scanLoop();
-      } catch(err) { console.error('Camera error:', err); }
+      } catch(e) { /* urządzenie nie wspiera sterowania ostrością — ignorujemy */ }
     };
-
-    const scanLoop = () => {
-      if (!mounted || !videoRef.current) return;
-      const video = videoRef.current;
-      if (video.readyState >= 2 && window.BarcodeDetector) {
-        const detector = new window.BarcodeDetector({ formats: ['code_128','code_39','ean_13','ean_8','upc_a','upc_e','itf','codabar','qr_code','data_matrix'] });
-        const detect = async () => {
-          if (!mounted) return;
-          try {
-            const barcodes = await detector.detect(video);
-            for (const barcode of barcodes) {
-              const code = barcode.rawValue.toUpperCase().trim();
-              if (!code || recentCodesRef.current.has(code)) continue;
-              recentCodesRef.current.add(code);
-              setTimeout(() => recentCodesRef.current.delete(code), 2000);
-              if (navigator.vibrate) navigator.vibrate(80);
-              const result = onScan(code);
-              if (mounted) {
-                setLastFeedback({ code, ok: result.ok, msg: result.msg });
-                setTimeout(() => { if (mounted) setLastFeedback(null); }, 2500);
-              }
-            }
-          } catch(e) {}
-          if (mounted) animRef.current = requestAnimationFrame(detect);
-        };
-        animRef.current = requestAnimationFrame(detect);
-      } else {
-        // Fallback: retry until video ready or BarcodeDetector available
-        animRef.current = setTimeout(scanLoop, 500);
-      }
-    };
-
-    startCamera();
-    return () => {
-      mounted = false;
-      if (animRef.current) { cancelAnimationFrame(animRef.current); clearTimeout(animRef.current); }
-      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
-    };
+    retryTimer = setTimeout(forceContinuousFocus, 600);
+    return () => { cancelled = true; if (retryTimer) clearTimeout(retryTimer); };
   }, []);
+
+  const handleDetected = (codes) => {
+    if (!codes?.length) return;
+    const code = (codes[0].rawValue||'').toUpperCase().trim();
+    if (!code) return;
+    if (navigator.vibrate) navigator.vibrate(80);
+    const result = onScan(code);
+    setLastFeedback({ code, ok: result.ok, msg: result.msg });
+    setTimeout(() => setLastFeedback(null), 2000);
+  };
 
   return (
     <div className="scanner-overlay">
@@ -153,7 +134,18 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
         <button className="btn-primary" onClick={onClose} style={{ width:'auto', padding:'10px 20px', fontSize:14 }}>✓ Gotowe</button>
       </div>
       <div style={{ flex:1, position:'relative', background:'#000', overflow:'hidden' }}>
-        <video ref={videoRef} style={{ width:'100%', height:'100%', objectFit:'cover' }} muted playsInline autoPlay />
+        <Scanner
+          ref={scannerRef}
+          onScan={handleDetected}
+          onError={(err) => console.error('Błąd skanera:', err)}
+          constraints={{ facingMode:'environment', width:{ ideal:1920 }, height:{ ideal:1080 } }}
+          formats={SCAN_FORMATS}
+          allowMultiple={true}
+          scanDelay={1200}
+          sound={false}
+          components={{ finder:false, torch:true, zoom:false, onOff:false }}
+          styles={{ container:{ width:'100%', height:'100%' }, video:{ objectFit:'cover', width:'100%', height:'100%' } }}
+        />
         <div style={{ position:'absolute', inset:0, pointerEvents:'none', display:'flex', alignItems:'center', justifyContent:'center' }}>
           <div style={{ width:'85%', maxWidth:340, height:120, border:'3px solid #FBB724', borderRadius:12, boxShadow:'0 0 0 9999px rgba(0,0,0,0.5)', position:'relative' }}>
             {[{top:0,left:0},{top:0,right:0},{bottom:0,left:0},{bottom:0,right:0}].map((pos,i) => (
@@ -162,13 +154,13 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
           </div>
         </div>
         {lastFeedback && (
-          <div className="slide-up" style={{ position:'absolute', bottom:24, left:'50%', transform:'translateX(-50%)', background:lastFeedback.ok?'rgba(34,197,94,0.95)':'rgba(248,113,113,0.95)', color:'#fff', padding:'12px 20px', borderRadius:10, fontWeight:600, fontSize:14, maxWidth:'85%', textAlign:'center' }}>
+          <div className="slide-up" style={{ position:'absolute', bottom:24, left:'50%', transform:'translateX(-50%)', background:lastFeedback.ok?'rgba(34,197,94,0.95)':'rgba(248,113,113,0.95)', color:'#fff', padding:'12px 20px', borderRadius:10, fontWeight:600, fontSize:14, maxWidth:'85%', textAlign:'center', zIndex:5 }}>
             {lastFeedback.ok?'✓ ':'⚠️ '}<strong>{lastFeedback.code}</strong>
             {lastFeedback.msg && <div style={{ fontSize:12, marginTop:4, opacity:.9 }}>{lastFeedback.msg}</div>}
           </div>
         )}
       </div>
-      <div style={{ padding:'14px 20px', background:'#0C0C0C', borderTop:'1px solid #222', textAlign:'center', color:'#888', fontSize:13 }}>Skieruj aparat na kod QR lub kod kreskowy</div>
+      <div style={{ padding:'14px 20px', background:'#0C0C0C', borderTop:'1px solid #222', textAlign:'center', color:'#888', fontSize:13 }}>Skieruj aparat na kod QR lub kod kreskowy — trzymaj ok. 10-15 cm od kodu</div>
     </div>
   );
 }
