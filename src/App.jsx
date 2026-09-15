@@ -64,6 +64,7 @@ const CATEGORIES = {
 
 const PRESET_COLORS = ['#FBB724','#34D399','#818CF8','#FB7185','#38BDF8','#F97316','#A78BFA','#4ADE80'];
 const DEFAULT_ADMIN_PASSWORD = 'admin1';
+const ADMIN_IDENTITY_STORAGE_KEY = 'studio_admin_identity';
 
 function now() {
   const d = new Date();
@@ -185,6 +186,30 @@ function AdminLoginView({ adminPassword, onLogin, onBack }) {
       <div style={{ marginTop:24, padding:14, background:'#141414', borderRadius:10, border:'1px solid #202020', color:'#666', fontSize:12, textAlign:'center' }}>
         Zapomniałeś hasła? Zaloguj się na swoje własne konto (jeśli masz uprawnienia administratora) i wejdź w „🔧 Panel Admina” z menu głównego — tam, w zakładce „⚙️ Ustawienia”, możesz podejrzeć i zmienić to hasło.
       </div>
+    </div>
+  );
+}
+
+// ── AdminIdentityPicker — kim jesteś (dla wejścia przez wspólne hasło) ──────
+function AdminIdentityPicker({ admins, onPick, onSkip, onBack }) {
+  return (
+    <div className="fade-in" style={{ padding:'0 20px 40px', maxWidth:400, margin:'0 auto' }}>
+      <div style={{ textAlign:'center', padding:'50px 0 28px' }}>
+        <div style={{ fontSize:40, marginBottom:12 }}>👋</div>
+        <div style={{ color:'#fff', fontWeight:800, fontSize:22 }}>Kim jesteś?</div>
+        <div style={{ color:'#888', fontSize:13, marginTop:6, lineHeight:1.5 }}>Żeby wiedzieć, które raporty już widziałeś/aś — wybierz swoje imię i nazwisko</div>
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+        {admins.map(a => (
+          <button key={a.id} onClick={() => onPick(a)} className="card" style={{ padding:'14px 16px', display:'flex', alignItems:'center', gap:12, cursor:'pointer', border:'1px solid #202020', background:'#141414', width:'100%', textAlign:'left' }}>
+            <Avatar user={a} size={38} />
+            <div style={{ color:'#eee', fontWeight:600, fontSize:15 }}>{a.name}</div>
+          </button>
+        ))}
+        {admins.length===0 && <div style={{ color:'#555', fontSize:13, textAlign:'center', padding:20 }}>Brak kont z uprawnieniami administratora — możesz pominąć ten krok.</div>}
+      </div>
+      <button className="btn-ghost" onClick={onSkip} style={{ textAlign:'center', width:'100%', marginTop:16 }}>Pomiń (bez oznaczania przeczytanych)</button>
+      <button className="btn-ghost" onClick={onBack} style={{ textAlign:'center', width:'100%', marginTop:8 }}>← Powrót</button>
     </div>
   );
 }
@@ -531,9 +556,138 @@ function StatusTab({ users, equipment }) {
   );
 }
 
+// ── DailyReportAdminTab — raport dzienny (zastępuje powiadomienia z Claude) ─
+function DailyReportAdminTab({ reports, readIds, onMarkRead, activeAdminId, activeAdminName, onSwitchIdentity, showSwitchIdentity }) {
+  const [openId, setOpenId] = useState(null);
+  const identityKnown = !!activeAdminId;
+  const unreadCount = identityKnown ? reports.filter(r => !readIds.includes(r.id)).length : 0;
+
+  const formatDate = (isoDate) => {
+    if (!isoDate) return '';
+    const [y,m,d] = isoDate.split('-');
+    return `${d}.${m}.${y}`;
+  };
+
+  const handleToggle = (report) => {
+    const opening = openId !== report.id;
+    setOpenId(opening ? report.id : null);
+    if (opening) onMarkRead(report.id);
+  };
+
+  return (
+    <div>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, gap:8, flexWrap:'wrap' }}>
+        <div style={{ color:'#888', fontSize:13 }}>
+          {reports.length} {reports.length===1?'raport':'raportów'}{unreadCount>0 && <span style={{ color:'#FBB724', fontWeight:700 }}> · {unreadCount} nowych</span>}
+        </div>
+        {activeAdminName ? (
+          <div style={{ color:'#666', fontSize:12 }}>
+            Widoczne jako: <strong style={{ color:'#aaa' }}>{activeAdminName}</strong>
+            {showSwitchIdentity && <button onClick={onSwitchIdentity} className="btn-ghost" style={{ marginLeft:8, padding:'3px 9px', fontSize:11 }}>zmień</button>}
+          </div>
+        ) : (
+          showSwitchIdentity && (
+            <div style={{ color:'#666', fontSize:12 }}>
+              Tożsamość pominięta
+              <button onClick={onSwitchIdentity} className="btn-ghost" style={{ marginLeft:8, padding:'3px 9px', fontSize:11 }}>wybierz</button>
+            </div>
+          )
+        )}
+      </div>
+
+      {reports.length===0 && (
+        <div style={{ color:'#555', textAlign:'center', padding:40, fontSize:14 }}>Brak raportów — pierwszy pojawi się po pierwszym uruchomieniu raportu dziennego.</div>
+      )}
+
+      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+        {reports.map(r => {
+          const isUnread = identityKnown && !readIds.includes(r.id);
+          const isOpen = openId === r.id;
+          const totals = r.totals || {};
+          const checkoutItems = r.checkout_items || [];
+          const returnEvents = r.return_events || [];
+          const newFeedback = r.new_feedback || [];
+          const assignedEquipment = r.assigned_equipment || [];
+          return (
+            <div key={r.id} className="card" style={{ padding:0, overflow:'hidden', borderColor:isUnread?'#FBB72444':'#202020' }}>
+              <div onClick={()=>handleToggle(r)} style={{ padding:'13px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
+                {isUnread && <div style={{ width:8, height:8, borderRadius:4, background:'#FBB724', flexShrink:0 }} />}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ color:'#eee', fontWeight:700, fontSize:14 }}>{formatDate(r.report_date)}</div>
+                  <div style={{ color:'#888', fontSize:12, marginTop:2 }}>📤 {r.checkouts_count||0} pobrań · 📥 {r.returns_count||0} zwrotów{newFeedback.length>0 && ` · 📝 ${newFeedback.length} zgłoszeń`}</div>
+                </div>
+                <span style={{ color:'#555', fontSize:18, transform:isOpen?'rotate(90deg)':'none', transition:'transform .15s' }}>›</span>
+              </div>
+
+              {isOpen && (
+                <div className="slide-up" style={{ padding:'0 14px 16px', borderTop:'1px solid #1a1a1a' }}>
+
+                  <div style={{ color:'#888', fontSize:11, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', margin:'14px 0 8px' }}>📤 Pobrania tego dnia</div>
+                  {checkoutItems.length===0 && <div style={{ color:'#555', fontSize:13, padding:'6px 0' }}>Brak pobrań.</div>}
+                  {checkoutItems.map((it, i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 0', borderBottom: i<checkoutItems.length-1?'1px solid #1a1a1a':'none' }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ color:'#ccc', fontSize:13 }}>{it.name} <span style={{ color:'#666', fontFamily:'DM Mono,monospace', fontSize:11 }}>{it.code}</span></div>
+                        <div style={{ color:'#888', fontSize:12, marginTop:2 }}>{it.user} · pobrano {it.checkoutTime}</div>
+                      </div>
+                      {it.status==='returned' ? (
+                        <div style={{ background:'#1a2a1a', border:'1px solid #22C55E33', borderRadius:6, padding:'3px 8px', color:'#22C55E', fontSize:11, whiteSpace:'nowrap', flexShrink:0 }}>zwrócono {it.returnTime}</div>
+                      ) : (
+                        <div style={{ background:'#2a2010', border:'1px solid #FBB72433', borderRadius:6, padding:'3px 8px', color:'#FBB724', fontSize:11, whiteSpace:'nowrap', flexShrink:0 }}>nadal na stanie</div>
+                      )}
+                    </div>
+                  ))}
+
+                  <div style={{ color:'#888', fontSize:11, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', margin:'16px 0 8px' }}>📥 Zwroty tego dnia</div>
+                  {returnEvents.length===0 && <div style={{ color:'#555', fontSize:13, padding:'6px 0' }}>Brak zwrotów.</div>}
+                  {returnEvents.map((it, i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 0' }}>
+                      <span style={{ fontSize:15 }}>{CATEGORIES[it.cat]?.icon||'📦'}</span>
+                      <div style={{ flex:1, minWidth:0, color:'#ccc', fontSize:13 }}>{it.name} <span style={{ color:'#666', fontFamily:'DM Mono,monospace', fontSize:11 }}>{it.code}</span></div>
+                      <div style={{ color:'#888', fontSize:12 }}>{it.user} · {it.time}</div>
+                    </div>
+                  ))}
+
+                  <div style={{ color:'#888', fontSize:11, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', margin:'16px 0 8px' }}>📝 Nowe zgłoszenia</div>
+                  {newFeedback.length===0 && <div style={{ color:'#555', fontSize:13, padding:'6px 0' }}>Brak nowych zgłoszeń.</div>}
+                  {newFeedback.map((f, i) => (
+                    <div key={i} style={{ padding:'8px 0', borderBottom: i<newFeedback.length-1?'1px solid #1a1a1a':'none' }}>
+                      <div style={{ color:'#FBB724', fontSize:11, fontWeight:700 }}>{f.category}</div>
+                      <div style={{ color:'#888', fontSize:12, marginTop:1 }}>{f.user}</div>
+                      <div style={{ color:'#ccc', fontSize:13, marginTop:3 }}>{f.description}</div>
+                    </div>
+                  ))}
+
+                  <div style={{ color:'#888', fontSize:11, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', margin:'16px 0 8px' }}>📦 Stan magazynu</div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10 }}>
+                    <div style={{ background:'#1a2a1a', border:'1px solid #22C55E33', borderRadius:8, padding:'6px 10px', color:'#22C55E', fontSize:12 }}>W magazynie: {totals.inWarehouse ?? '—'}</div>
+                    <div style={{ background:'#2a2010', border:'1px solid #FBB72433', borderRadius:8, padding:'6px 10px', color:'#FBB724', fontSize:12 }}>U fotografów: {totals.withPhotographers ?? '—'}</div>
+                    <div style={{ background:'#1a1a2a', border:'1px solid #818CF833', borderRadius:8, padding:'6px 10px', color:'#818CF8', fontSize:12 }}>Na stałe: {totals.assignedPermanently ?? '—'}</div>
+                  </div>
+                  {assignedEquipment.length>0 && (
+                    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                      {assignedEquipment.map((e,i) => (
+                        <div key={i} style={{ display:'flex', gap:8, fontSize:12, color:'#888' }}>
+                          <span style={{ flex:1 }}>{e.name} <span style={{ color:'#555', fontFamily:'DM Mono,monospace', fontSize:10 }}>{e.code}</span></span>
+                          <span style={{ color:'#818CF8' }}>{e.assignedTo}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── AdminView ───────────────────────────────────────────────────────────────
-function AdminView({ users, equipment, feedbackList, adminPassword, onSaveUsers, onSaveEquipment, onAssign, onUpdateUser, onUpdateEquipment, onMarkDone, onChangeAdminPassword, onBack }) {
+function AdminView({ users, equipment, feedbackList, adminPassword, dailyReports, reportReads, activeAdminId, activeAdminName, showSwitchIdentity, onSaveUsers, onSaveEquipment, onAssign, onUpdateUser, onUpdateEquipment, onMarkDone, onChangeAdminPassword, onMarkReportRead, onSwitchIdentity, onBack }) {
   const [tab, setTab] = useState('status');
+  const unreadReportsCount = activeAdminId ? dailyReports.filter(r => !reportReads.includes(r.id)).length : 0;
   return (
     <div className="fade-in" style={{ padding:'16px 20px 40px', maxWidth:480, margin:'0 auto' }}>
       <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
@@ -543,12 +697,13 @@ function AdminView({ users, equipment, feedbackList, adminPassword, onSaveUsers,
           <div style={{ color:'#888', fontSize:12, marginTop:1 }}>Zarządzaj sprzętem i użytkownikami</div>
         </div>
       </div>
-      <div style={{ display:'flex', gap:3, marginBottom:20, background:'#141414', borderRadius:10, padding:4, border:'1px solid #202020' }}>
-        {[{key:'status',label:'📊 Stan'},{key:'users',label:'👤 Użytkownicy'},{key:'equipment',label:'📦 Sprzęt'},{key:'feedback',label:'📝 Zgłoszenia'},{key:'settings',label:'⚙️ Ustawienia'}].map(t => (
-          <button key={t.key} onClick={()=>setTab(t.key)} style={{ flex:1, padding:'9px 4px', borderRadius:7, border:'none', cursor:'pointer', fontFamily:'Barlow,sans-serif', fontWeight:600, fontSize:12, background:tab===t.key?'#FBB724':'transparent', color:tab===t.key?'#0C0C0C':'#888', transition:'all .15s' }}>{t.label}</button>
+      <div style={{ display:'flex', gap:3, marginBottom:20, background:'#141414', borderRadius:10, padding:4, border:'1px solid #202020', flexWrap:'wrap' }}>
+        {[{key:'status',label:'📊 Stan'},{key:'report',label:`📅 Raport${unreadReportsCount>0?` (${unreadReportsCount})`:''}`},{key:'users',label:'👤 Użytkownicy'},{key:'equipment',label:'📦 Sprzęt'},{key:'feedback',label:'📝 Zgłoszenia'},{key:'settings',label:'⚙️ Ustawienia'}].map(t => (
+          <button key={t.key} onClick={()=>setTab(t.key)} style={{ flex:'1 1 auto', minWidth:70, padding:'9px 4px', borderRadius:7, border:'none', cursor:'pointer', fontFamily:'Barlow,sans-serif', fontWeight:600, fontSize:12, background:tab===t.key?'#FBB724':'transparent', color:tab===t.key?'#0C0C0C':'#888', transition:'all .15s' }}>{t.label}</button>
         ))}
       </div>
       {tab==='status' && <StatusTab users={users} equipment={equipment} />}
+      {tab==='report' && <DailyReportAdminTab reports={dailyReports} readIds={reportReads} onMarkRead={onMarkReportRead} activeAdminId={activeAdminId} activeAdminName={activeAdminName} onSwitchIdentity={onSwitchIdentity} showSwitchIdentity={showSwitchIdentity} />}
       {tab==='users' && <UsersTab users={users} onSaveUsers={onSaveUsers} onUpdateUser={onUpdateUser} />}
       {tab==='equipment' && <EquipmentTab equipment={equipment} onSaveEquipment={onSaveEquipment} onUpdateEquipment={onUpdateEquipment} />}
       {tab==='feedback' && <FeedbackAdminTab feedbackList={feedbackList} onMarkDone={onMarkDone} />}
@@ -1086,17 +1241,27 @@ export default function App() {
   const [scanMode,    setScanMode]    = useState(null);
   const [adminFrom,   setAdminFrom]   = useState('login'); // FIX #4
   const [feedbackList, setFeedbackList] = useState([]);
+  const [dailyReports, setDailyReports] = useState([]);
+  const [reportReads, setReportReads] = useState([]);
+  const [adminIdentity, setAdminIdentity] = useState(null); // używane tylko przy wejściu przez wspólne hasło (bez konta osobistego)
+
+  // Kim aktualnie "jest" adminem w Panelu Admina — z konta osobistego (currentUser) jeśli
+  // wszedł przez "🔧 Panel Admina" po zalogowaniu, albo z wyboru w AdminIdentityPicker jeśli
+  // wszedł przez wspólne hasło "🔐 Panel Admina" z ekranu logowania.
+  const activeAdminId = currentUser?.id || adminIdentity?.id || null;
+  const activeAdminName = currentUser?.name || adminIdentity?.name || null;
 
   // FIX #1: silent=true skips loading spinner (used for background refresh)
   const fetchAll = useCallback(async (silent = false) => {
     if (!silent) { setLoading(true); setDbError(false); }
     try {
-      const [eqRes, usersRes, histRes, fbRes, settingsRes] = await Promise.all([
+      const [eqRes, usersRes, histRes, fbRes, settingsRes, reportsRes] = await Promise.all([
         supabase.from('equipment').select('*'),
         supabase.from('users').select('*'),
         supabase.from('history').select('*').order('id', { ascending:true }),
         supabase.from('feedback').select('*').order('id', { ascending:false }),
         supabase.from('settings').select('*').eq('key', 'admin_password').maybeSingle(),
+        supabase.from('daily_reports').select('*').order('report_date', { ascending:false }),
       ]);
       if (eqRes.error) throw eqRes.error;
       if (usersRes.error) throw usersRes.error;
@@ -1109,11 +1274,36 @@ export default function App() {
       if (settingsRes && !settingsRes.error && settingsRes.data && settingsRes.data.value) {
         setAdminPassword(settingsRes.data.value);
       }
+      // Tabela "daily_reports" jest opcjonalna (patrz utworz_tabele_raporty_dzienne.sql) — jeśli
+      // jeszcze nie istnieje, zakładka "Raport dzienny" po prostu pokaże pustą listę.
+      if (reportsRes && !reportsRes.error) {
+        setDailyReports(reportsRes.data || []);
+      }
     } catch(e) { console.error('DB error:', e); if (!silent) setDbError(true); }
     if (!silent) setLoading(false);
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Wczytaj zapamiętaną tożsamość administratora (dla wejścia przez wspólne hasło) z tego
+  // urządzenia — tylko jeśli nadal jest to aktywne konto z uprawnieniami admina.
+  useEffect(() => {
+    try {
+      const savedId = localStorage.getItem(ADMIN_IDENTITY_STORAGE_KEY);
+      if (savedId && !adminIdentity) {
+        const found = users.find(u => u.id === savedId && u.is_admin);
+        if (found) setAdminIdentity(found);
+      }
+    } catch(e) { /* localStorage niedostępny (np. tryb prywatny) — pomijamy */ }
+  }, [users]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Które raporty ten administrator już widział — wczytujemy przy zmianie tożsamości.
+  useEffect(() => {
+    if (!activeAdminId) { setReportReads([]); return; }
+    supabase.from('daily_report_reads').select('report_id').eq('admin_id', activeAdminId).then(({ data, error }) => {
+      if (!error) setReportReads((data||[]).map(r => r.report_id));
+    });
+  }, [activeAdminId]);
 
   useEffect(() => {
     const channel = supabase.channel('studio-changes')
@@ -1130,6 +1320,12 @@ export default function App() {
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'history' }, (payload) => {
         const h = payload.new;
         setHistory(prev => { if (prev.find(x=>x.dbId===h.id)) return prev; return [...prev, { dbId:h.id, mode:h.mode, userId:h.user_id, items:h.items, time:h.time }]; });
+      })
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'daily_reports' }, (payload) => {
+        setDailyReports(prev => prev.find(r=>r.id===payload.new.id) ? prev : [payload.new, ...prev]);
+      })
+      .on('postgres_changes', { event:'UPDATE', schema:'public', table:'daily_reports' }, (payload) => {
+        setDailyReports(prev => prev.map(r => r.id===payload.new.id ? payload.new : r));
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -1208,6 +1404,19 @@ export default function App() {
     setAdminPassword(newPassword);
   };
 
+  // Oznacz raport dzienny jako przeczytany przez aktualnie zalogowanego (w panelu) admina.
+  const handleMarkReportRead = async (reportId) => {
+    if (!activeAdminId || reportReads.includes(reportId)) return;
+    setReportReads(prev => [...prev, reportId]);
+    await supabase.from('daily_report_reads').upsert({ report_id:reportId, admin_id:activeAdminId }, { onConflict:'report_id,admin_id' });
+  };
+
+  const handleSwitchAdminIdentity = () => {
+    setAdminIdentity(null);
+    try { localStorage.removeItem(ADMIN_IDENTITY_STORAGE_KEY); } catch(e) {}
+    setView('admin-identity');
+  };
+
   const handleReset = async () => {
     if (!confirm('Czy na pewno zresetować WSZYSTKIE dane?')) return;
     await Promise.all([supabase.from('history').delete().neq('id',0), supabase.from('equipment').delete().neq('id',''), supabase.from('users').delete().neq('id','')]);
@@ -1256,8 +1465,9 @@ export default function App() {
     <div style={{ background:'#0A0A0A', minHeight:'100vh', color:'#fff', fontFamily:'Barlow,sans-serif' }}>
       <style>{STYLES}</style>
       {view==='login' && <LoginView onLoginWithCredentials={handleLoginWithCredentials} onAdmin={()=>setView('admin-login')} />}
-      {view==='admin-login' && <AdminLoginView adminPassword={adminPassword} onLogin={()=>{ setAdminFrom('login'); setView('admin'); }} onBack={()=>setView('login')} />}
-      {view==='admin' && <AdminView users={users} equipment={equipment} feedbackList={feedbackList} adminPassword={adminPassword} onSaveUsers={handleSaveUsers} onSaveEquipment={handleSaveEquipment} onAssign={handleAssign} onUpdateUser={handleUpdateUser} onUpdateEquipment={handleUpdateEquipment} onMarkDone={handleMarkDone} onChangeAdminPassword={handleChangeAdminPassword} onBack={()=>setView(adminFrom)} />}
+      {view==='admin-login' && <AdminLoginView adminPassword={adminPassword} onLogin={()=>{ setAdminFrom('login'); setView(adminIdentity ? 'admin' : 'admin-identity'); }} onBack={()=>setView('login')} />}
+      {view==='admin-identity' && <AdminIdentityPicker admins={users.filter(u=>u.is_admin)} onPick={(u)=>{ setAdminIdentity(u); try{localStorage.setItem(ADMIN_IDENTITY_STORAGE_KEY,u.id);}catch(e){} setView('admin'); }} onSkip={()=>setView('admin')} onBack={()=>setView('admin-login')} />}
+      {view==='admin' && <AdminView users={users} equipment={equipment} feedbackList={feedbackList} adminPassword={adminPassword} dailyReports={dailyReports} reportReads={reportReads} activeAdminId={activeAdminId} activeAdminName={activeAdminName} showSwitchIdentity={!currentUser} onSaveUsers={handleSaveUsers} onSaveEquipment={handleSaveEquipment} onAssign={handleAssign} onUpdateUser={handleUpdateUser} onUpdateEquipment={handleUpdateEquipment} onMarkDone={handleMarkDone} onChangeAdminPassword={handleChangeAdminPassword} onMarkReportRead={handleMarkReportRead} onSwitchIdentity={handleSwitchAdminIdentity} onBack={()=>setView(adminFrom)} />}
       {view==='home' && currentUser && <HomeView user={currentUser} equipment={equipment} history={history} onAction={handleAction} onLogout={handleLogout} onAssign={handleAssign} />}
       {view==='scan' && currentUser && <ScanView user={currentUser} equipment={equipment} users={users} mode={scanMode} onConfirm={handleConfirm} onBack={()=>setView('home')} />}
       {view==='catalog' && <CatalogView equipment={equipment} users={users} onBack={()=>setView('home')} />}
