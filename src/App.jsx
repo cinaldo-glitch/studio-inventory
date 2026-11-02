@@ -92,6 +92,23 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
   const [lastFeedback, setLastFeedback] = useState(null);
   const scannerRef = useRef(null);
 
+  // Kształt ramki celowniczej: poziomy (domyślny) albo pionowy — dla naklejek, na których kod
+  // jest obrócony o 90°. Dzięki temu nie trzeba obracać telefonu (a więc i aplikacji) do poziomu.
+  // Wybór jest zapamiętywany na urządzeniu.
+  const [frameVertical, setFrameVertical] = useState(() => {
+    try { return localStorage.getItem('studio_scan_frame') === 'vertical'; } catch(e) { return false; }
+  });
+  const toggleFrame = () => {
+    setFrameVertical(v => {
+      const next = !v;
+      try { localStorage.setItem('studio_scan_frame', next ? 'vertical' : 'horizontal'); } catch(e) { /* tryb prywatny — pomijamy */ }
+      return next;
+    });
+  };
+  const frameSize = frameVertical
+    ? { width:130, height:'72%', maxHeight:380 }
+    : { width:'85%', maxWidth:340, height:120 };
+
   // Android: część telefonów nie łapie ostrości z automatu przy bliskiej odległości od kodu
   // (aparat zostaje "zablokowany" na ostrości ustawionej w momencie startu strumienia).
   // Wymuszamy tryb ciągłego auto-focusu, jeśli aparat go wspiera — bezpiecznie ignorowane,
@@ -129,10 +146,13 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
     <div className="scanner-overlay">
       <div style={{ padding:'16px 20px', background:'#0C0C0C', borderBottom:'1px solid #222', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div>
-          <div style={{ color:'#fff', fontWeight:700, fontSize:16 }}>📷 Skanuj kod</div>
-          <div style={{ color:'#888', fontSize:13, marginTop:2 }}>Zeskanowane: {scannedCount}</div>
+          <div style={{ color:'#fff', fontWeight:700, fontSize:16, whiteSpace:'nowrap' }}>📷 Skanuj kod</div>
+          <div style={{ color:'#888', fontSize:13, marginTop:2, whiteSpace:'nowrap' }}>Zeskanowane: {scannedCount}</div>
         </div>
-        <button className="btn-primary" onClick={onClose} style={{ width:'auto', padding:'10px 20px', fontSize:14 }}>✓ Gotowe</button>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <button className="btn-ghost" onClick={toggleFrame} style={{ padding:'10px 12px', fontSize:13, color:'#FBB724', borderColor:'#FBB72466', whiteSpace:'nowrap' }}>{frameVertical ? '↔ Pozioma' : '↕ Pionowa'}</button>
+          <button className="btn-primary" onClick={onClose} style={{ width:'auto', padding:'10px 16px', fontSize:14, whiteSpace:'nowrap' }}>✓ Gotowe</button>
+        </div>
       </div>
       <div style={{ flex:1, position:'relative', background:'#000', overflow:'hidden' }}>
         <Scanner
@@ -148,7 +168,7 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
           styles={{ container:{ width:'100%', height:'100%' }, video:{ objectFit:'cover', width:'100%', height:'100%' } }}
         />
         <div style={{ position:'absolute', inset:0, pointerEvents:'none', display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div style={{ width:'85%', maxWidth:340, height:120, border:'3px solid #FBB724', borderRadius:12, boxShadow:'0 0 0 9999px rgba(0,0,0,0.5)', position:'relative' }}>
+          <div style={{ ...frameSize, border:'3px solid #FBB724', borderRadius:12, boxShadow:'0 0 0 9999px rgba(0,0,0,0.5)', position:'relative' }}>
             {[{top:0,left:0},{top:0,right:0},{bottom:0,left:0},{bottom:0,right:0}].map((pos,i) => (
               <div key={i} style={{ position:'absolute', width:20, height:20, borderColor:'#FBB724', borderStyle:'solid', borderWidth:0, ...(pos.top===0?{borderTopWidth:4}:{borderBottomWidth:4}), ...(pos.left===0?{borderLeftWidth:4}:{borderRightWidth:4}), ...pos }} />
             ))}
@@ -161,7 +181,7 @@ function QRScannerModal({ onScan, onClose, scannedCount }) {
           </div>
         )}
       </div>
-      <div style={{ padding:'14px 20px', background:'#0C0C0C', borderTop:'1px solid #222', textAlign:'center', color:'#888', fontSize:13 }}>Skieruj aparat na kod QR lub kod kreskowy — trzymaj ok. 10-15 cm od kodu</div>
+      <div style={{ padding:'14px 20px', background:'#0C0C0C', borderTop:'1px solid #222', textAlign:'center', color:'#888', fontSize:13 }}>{frameVertical ? 'Kod naklejony pionowo — ustaw go w pionowej ramce, telefon trzymaj normalnie (bez obracania)' : 'Skieruj aparat na kod QR lub kod kreskowy — trzymaj ok. 10-15 cm od kodu'}</div>
     </div>
   );
 }
